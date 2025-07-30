@@ -39,6 +39,7 @@ private:
 	int vid;
 	const std::vector<int> pids;
 	int interfaceNum = -1;
+	RString productName;
 
 	//Behaviour configuration
 	bool autoReconnection = true;
@@ -51,10 +52,10 @@ private:
 	bool CheckConnection();
 	const wchar_t* GetError();
 public:
-	static void GetDeviceInfo(int vid, const std::vector<int> pids, int interfaceNumber, HidDeviceInfo* device_info);
+	static void GetDeviceInfo(int vid, const std::vector<int> pids, RString productName, int interfaceNumber, HidDeviceInfo* device_info);
 
-	HidDevice(int vid, const std::vector<int> pids, int interfaceNum = -1, bool autoReconnection = true, bool nonBlockingRead = false);
-	HidDevice(int vid, int pid, int interfaceNum = -1, bool autoReconnection = true, bool nonBlockingRead = false);
+	HidDevice(int vid, const std::vector<int> pids, int interfaceNum = -1, bool autoReconnection = true, bool nonBlockingRead = false, RString productName = "");
+	HidDevice(int vid, int pid, int interfaceNum = -1, bool autoReconnection = true, bool nonBlockingRead = false, RString productName = "");
 
 	virtual ~HidDevice();
 

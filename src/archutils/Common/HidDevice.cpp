@@ -2,18 +2,19 @@
 #include "HidDevice.h"
 #include "RageLog.h"
 
-HidDevice::HidDevice(int vid, const std::vector<int> pids, int interfaceNum, bool autoReconnection, bool nonBlockingRead) :
+HidDevice::HidDevice(int vid, const std::vector<int> pids, int interfaceNum, bool autoReconnection, bool nonBlockingRead, RString productName) :
 	vid{ vid },
 	pids{ pids },
 	interfaceNum{ interfaceNum },
 	autoReconnection{ autoReconnection },
-	nonBlockingRead{ nonBlockingRead }
+	nonBlockingRead{ nonBlockingRead },
+	productName {productName}
 {
 	bool result = TryConnect();
 
 	if (!result)
 	{
-		LOG->Warn("HidDevice with vendor_id 0x%04x and pids 0x%s %d could not connect.", vid, GetPidsString(pids).c_str(), interfaceNum);
+		LOG->Warn("HidDevice with vendor_id 0x%04x and pids 0x%s %d \"%s\" could not connect.", vid, GetPidsString(pids).c_str(), interfaceNum, productName.c_str());
 	}
 	else
 	{
@@ -21,8 +22,8 @@ HidDevice::HidDevice(int vid, const std::vector<int> pids, int interfaceNum, boo
 	}
 }
 
-HidDevice::HidDevice(int vid, int pid, int interfaceNum, bool autoReconnection, bool nonBlockingRead) :
-	HidDevice(vid, make_pids(pid, 1), interfaceNum, autoReconnection, nonBlockingRead)
+HidDevice::HidDevice(int vid, int pid, int interfaceNum, bool autoReconnection, bool nonBlockingRead, RString productName) :
+	HidDevice(vid, make_pids(pid, 1), interfaceNum, autoReconnection, nonBlockingRead, productName)
 {
 }
 
@@ -64,7 +65,7 @@ bool HidDevice::Open(const char* path)
 
 bool HidDevice::TryConnect()
 {
-	GetDeviceInfo(vid, pids, interfaceNum, &foundDeviceInfo);
+	GetDeviceInfo(vid, pids, productName, interfaceNum, &foundDeviceInfo);
 
 	if (foundDeviceInfo.path == nullptr)
 		return false;
@@ -115,7 +116,7 @@ const RString HidDevice::GetPidsString(const std::vector<int> pids)
 	return pidsString;
 }
 
-void HidDevice::GetDeviceInfo(int vid, const std::vector<int> pids, int interfaceNumber, HidDeviceInfo* device_info)
+void HidDevice::GetDeviceInfo(int vid, const std::vector<int> pids, RString productName, int interfaceNumber, HidDeviceInfo* device_info)
 {
 	bool found{ false };
 	struct hid_device_info* devs, * cur_dev;
@@ -151,7 +152,28 @@ void HidDevice::GetDeviceInfo(int vid, const std::vector<int> pids, int interfac
 			}
 
 			if (found)
-				break;
+			{
+				//if there is a product string, and we are looking for it
+				if(cur_dev->product_string && !productName.empty())
+				{
+					//see if it's the one we want.
+					char buf[256];
+					if(strcmp((wcstombs(buf, cur_dev->product_string, sizeof(buf)), buf), productName.c_str()) == 0)
+					{
+						//it was, we found it.
+						break;
+					}
+					else
+					{
+						//correct pid, invalid product string.
+						found = false;
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
 
 			cur_dev = cur_dev->next;
 		}
