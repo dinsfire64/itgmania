@@ -221,12 +221,14 @@ std::string LowLevelWindow_X11::TryVideoMode(
     if (!MakeWindow(
             Win, xvi->screen, xvi->depth, xvi->visual, p.width, p.height,
             !p.windowed)) {
+      XFree(xvi);
       return "Failed to create the window.";
     }
 
     if (!MakeWindow(
             g_AltWindow, xvi->screen, xvi->depth, xvi->visual, p.width,
             p.height, !p.windowed)) {
+      XFree(xvi);
       FAIL_M("Failed to create the alt window.");  // Should this be fatal?
     }
 
@@ -243,6 +245,8 @@ std::string LowLevelWindow_X11::TryVideoMode(
     }
     g_pContext = glXCreateContext(Dpy, xvi, nullptr, True);
     g_pBackgroundContext = glXCreateContext(Dpy, xvi, g_pContext, True);
+
+    XFree(xvi);
 
     glXMakeCurrent(Dpy, Win, g_pContext);
 
