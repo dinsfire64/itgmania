@@ -141,6 +141,8 @@ LightsManager::~LightsManager() {
     RageUtil::SafeDelete(iter);
   }
   m_vpDrivers.clear();
+
+  RageUtil::SafeDelete(m_LightsMutex);
 }
 
 int LightsManager::LightsManThreadMain() {
