@@ -559,7 +559,8 @@ void MusicWheel::BuildWheelItemDatas(
     std::vector<MusicWheelItemData*>& arrayWheelItemDatas, SortOrder so) {
   switch (so) {
     case SORT_MODE_MENU: {
-      arrayWheelItemDatas.clear();  // clear out the previous wheel items
+      RageUtil::SafeClearVector(
+          arrayWheelItemDatas);  // clear out the previous wheel items
       std::vector<std::string> vsNames;
       split(MODE_MENU_CHOICE_NAMES, ",", vsNames);
       for (unsigned i = 0; i < vsNames.size(); ++i) {
@@ -752,7 +753,8 @@ void MusicWheel::BuildWheelItemDatas(
       }
 
       // Build an array of WheelItemDatas from the sorted list of Song*'s
-      arrayWheelItemDatas.clear();  // clear out the previous wheel items
+      RageUtil::SafeClearVector(
+          arrayWheelItemDatas);  // clear out the previous wheel items
       arrayWheelItemDatas.reserve(arraySongs.size());
 
       switch (PREFSMAN->m_MusicWheelUsesSections) {
@@ -1067,7 +1069,8 @@ void MusicWheel::BuildWheelItemDatas(
         CourseUtil::SortCoursePointerArrayByType(apCourses);
       }
 
-      arrayWheelItemDatas.clear();  // clear out the previous wheel items
+      RageUtil::SafeClearVector(
+          arrayWheelItemDatas);  // clear out the previous wheel items
 
       std::string sLastSection = "";
       int iSectionColorIndex = 0;
@@ -1180,7 +1183,7 @@ void MusicWheel::readyWheelItemsData(SortOrder so) {
 void MusicWheel::FilterWheelItemDatas(
     std::vector<MusicWheelItemData*>& aUnFilteredDatas,
     std::vector<MusicWheelItemData*>& aFilteredData, SortOrder so) {
-  aFilteredData.clear();
+  RageUtil::SafeClearVector(aFilteredData);
 
   unsigned unfilteredSize = aUnFilteredDatas.size();
 
@@ -1655,7 +1658,7 @@ void MusicWheel::SetOpenSection(std::string group) {
         vpPossibleStyles);
   }
 
-  m_CurWheelItemData.clear();
+  RageUtil::SafeClearVector(m_CurWheelItemData);
   std::vector<MusicWheelItemData*>& from =
       getWheelItemsData(GAMESTATE->m_SortOrder);
   m_CurWheelItemData.reserve(from.size());

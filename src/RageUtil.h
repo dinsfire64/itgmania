@@ -35,6 +35,14 @@ class RageUtil {
     delete[] p;
     p = nullptr;
   }
+
+  template <typename T>
+  static inline void SafeClearVector(std::vector<T*>& vec) {
+    for (T* p : vec) {
+      delete p;
+    }
+    vec.clear();
+  }
 };
 
 /** @brief Zero out the memory. */
