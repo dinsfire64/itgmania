@@ -215,11 +215,12 @@ DeviceButton StringToDeviceButton(const std::string& s) {
 LuaXType(DeviceButton);
 
 static const char* InputDeviceNames[] = {
-    "Key",   "Joy1",  "Joy2",  "Joy3",  "Joy4",  "Joy5",  "Joy6",    "Joy7",
-    "Joy8",  "Joy9",  "Joy10", "Joy11", "Joy12", "Joy13", "Joy14",   "Joy15",
-    "Joy16", "Joy17", "Joy18", "Joy19", "Joy20", "Joy21", "Joy22",   "Joy23",
-    "Joy24", "Joy25", "Joy26", "Joy27", "Joy28", "Joy29", "Joy30",   "Joy31",
-    "Joy32", "Pump1", "Pump2", "Midi",  "Mouse", "PIUIO", "PumpHID",
+    "Key",   "Joy1",  "Joy2",  "Joy3",    "Joy4",    "Joy5",    "Joy6",
+    "Joy7",  "Joy8",  "Joy9",  "Joy10",   "Joy11",   "Joy12",   "Joy13",
+    "Joy14", "Joy15", "Joy16", "Joy17",   "Joy18",   "Joy19",   "Joy20",
+    "Joy21", "Joy22", "Joy23", "Joy24",   "Joy25",   "Joy26",   "Joy27",
+    "Joy28", "Joy29", "Joy30", "Joy31",   "Joy32",   "Pump1",   "Pump2",
+    "Midi",  "Mouse", "PIUIO", "PumpHID", "Stac2P1", "Stac2P2",
 };
 XToString(InputDevice);
 StringToX(InputDevice);
