@@ -117,12 +117,12 @@ uint64_t InputHandler_Stac2EventQueue::CheckRTTTime() {
     uint64_t rttUs = hostAfter - hostBefore;
     totalRttUs += rttUs;
 
-    LOG->Trace("Sample %d: RTT = %ld us", i, rttUs);
+    LOG->Trace("Sample %d: RTT = %" PRIu64 " us", i, rttUs);
   }
 
   int64_t usbRoundTripTimeUs = totalRttUs / samples;
 
-  LOG->Info("Stac2 RTT: %ld", usbRoundTripTimeUs);
+  LOG->Info("Stac2 RTT: %" PRIu64 " us", usbRoundTripTimeUs);
 
   return usbRoundTripTimeUs;
 }
@@ -147,7 +147,7 @@ void InputHandler_Stac2EventQueue::InputThreadMain() {
   uint64_t startLocalTime = ArchHooks::GetSystemTimeInMicroseconds();
 
   LOG->Info(
-      "Stac2EventQueue: startLoopDeviceTime %ld LocalTime: %ld",
+      "Stac2EventQueue: startLoopDeviceTime %" PRIu64 " LocalTime: %" PRIu64 "",
       startLoopDeviceTime, startLocalTime);
 
   while (!m_bShutdown) {
