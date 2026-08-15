@@ -1,24 +1,25 @@
 #include "InputFilter.h"
 
+#include <cstddef>
+#include <map>  // for mouse stuff: -aj
+#include <set>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "EnumHelper.h"
 #include "GameInput.h"
 #include "InputMapper.h"
 #include "LuaManager.h"
+#include "PlayerNumber.h"
 #include "Preference.h"
+#include "PrefsManager.h"
 #include "RageInput.h"
 #include "RageInputDevice.h"
 #include "RageLog.h"
 #include "RageThreads.h"
 #include "RageTimer.h"
 #include "RageUtil.h"
-// for mouse stuff: -aj
-#include <map>
-#include <set>
-#include <string>
-#include <utility>
-#include <vector>
-
-#include "PrefsManager.h"
 #include "ScreenDimensions.h"
 
 static const char* InputEventTypeNames[] = {"FirstPress", "Repeat", "Release"};
@@ -26,6 +27,18 @@ static const char* InputEventTypeNames[] = {"FirstPress", "Repeat", "Release"};
 XToString(InputEventType);
 XToLocalizedString(InputEventType);
 LuaXType(InputEventType);
+
+static constexpr const char* PadPanelNames[static_cast<size_t>(PadPanel::MAX)] =
+    {"UpLeft", "Up",       "UpRight", "Left",     "Center",
+     "Right",  "DownLeft", "Down",    "DownRight"};
+
+static constexpr const char*
+    PadSensorNames[static_cast<size_t>(PadSensor::MAX)] = {
+        "Top",
+        "Right",
+        "Bottom",
+        "Left",
+};
 
 struct ButtonState {
   ButtonState();
@@ -465,6 +478,16 @@ void InputFilter::UpdateCursorLocation(float _fX, float _fY) {
 
 void InputFilter::UpdateMouseWheel(float _fZ) { m_MouseCoords.fZ = _fZ; }
 
+bool InputFilter::setFullSensorState(
+    PlayerNumber pn, PadPanel panel, PadSensor sensor, float intensity) {
+  if (pn < NUM_PlayerNumber && panel < PadPanel::MAX &&
+      sensor < PadSensor::MAX) {
+    m_Sensors[pn].Set(panel, sensor, intensity);
+    return true;
+  }
+  return false;
+}
+
 // lua start
 #include "LuaBinding.h"
 
@@ -495,10 +518,37 @@ class LunaInputFilter : public Luna<InputFilter> {
     return 1;
   }
 
+  static int GetFullSensorState(T* p, lua_State* L) {
+    lua_createtable(L, NUM_PLAYERS, 0);
+
+    for (size_t player = 0; player < NUM_PLAYERS; ++player) {
+      lua_createtable(L, 0, NUM_PANELS);
+
+      for (size_t panel = 0; panel < NUM_PANELS; ++panel) {
+        lua_createtable(L, 0, NUM_PANELS);
+
+        for (size_t sensor = 0; sensor < NUM_SENSORS; ++sensor) {
+          lua_pushnumber(
+              L, p->getFullSensorState((PlayerNumber)player)
+                     ->intensity[panel][sensor]);
+
+          lua_setfield(L, -2, PadSensorNames[sensor]);
+        }
+
+        lua_setfield(L, -2, PadPanelNames[panel]);
+      }
+
+      lua_setfield(L, -2, PlayerNumberToString((PlayerNumber)player).c_str());
+    }
+
+    return 1;
+  }
+
   LunaInputFilter() {
     ADD_METHOD(GetMouseX);
     ADD_METHOD(GetMouseY);
     ADD_METHOD(GetMouseWheel);
+    ADD_METHOD(GetFullSensorState);
   }
 };
 

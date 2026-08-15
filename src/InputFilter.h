@@ -4,10 +4,12 @@
 #ifndef INPUT_FILTER_H
 #define INPUT_FILTER_H
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
 #include "EnumHelper.h"
+#include "PlayerNumber.h"
 #include "RageInputDevice.h"
 #include "RageTimer.h"
 
@@ -45,6 +47,53 @@ struct MouseCoordinates {
   float fX;
   float fY;
   float fZ;
+};
+
+// describes each of the panels of a single player dance pad
+enum class PadPanel {
+  UpLeft = 0,
+  Up,
+  UpRight,
+  Left,
+  Center,
+  Right,
+  DownLeft,
+  Down,
+  DownRight,
+  MAX
+};
+
+constexpr size_t NUM_PANELS = static_cast<size_t>(PadPanel::MAX);
+
+enum class PadSensor {
+  Top = 0,
+  Right,
+  Bottom,
+  Left,
+
+  MAX
+};
+
+constexpr size_t NUM_SENSORS = static_cast<size_t>(PadSensor::MAX);
+
+struct PadSensorState {
+  float intensity[NUM_PANELS][NUM_SENSORS] = {};
+
+  float& Get(PadPanel panel, PadSensor sensor) {
+    return intensity[static_cast<int>(panel)][static_cast<int>(sensor)];
+  }
+
+  const float& Get(PadPanel panel, PadSensor sensor) const {
+    return intensity[static_cast<int>(panel)][static_cast<int>(sensor)];
+  }
+
+  void Set(PadPanel panel, PadSensor sensor, float intensity) {
+    intensity = std::clamp(intensity, 0.0f, 1.0f);
+    this->intensity[static_cast<int>(panel)][static_cast<int>(sensor)] =
+        intensity;
+  }
+
+  void Clear() { std::memset(intensity, 0, sizeof(intensity)); }
 };
 
 class RageMutex;
@@ -89,6 +138,16 @@ class InputFilter {
   float GetCursorY() { return m_MouseCoords.fY; }
   float GetMouseWheel() { return m_MouseCoords.fZ; }
 
+  PadSensorState* getFullSensorState(PlayerNumber pn) {
+    if (pn < NUM_PLAYERS) {
+      return &m_Sensors[pn];
+    }
+    return nullptr;
+  }
+
+  bool setFullSensorState(
+      PlayerNumber pn, PadPanel panel, PadSensor sensor, float intensity);
+
   // Lua
   void PushSelf(lua_State* L);
 
@@ -100,6 +159,9 @@ class InputFilter {
   std::vector<InputEvent> queue;
   RageMutex* queuemutex;
   MouseCoordinates m_MouseCoords;
+
+  // debug sensors.
+  PadSensorState m_Sensors[NUM_PLAYERS];
 
   InputFilter(const InputFilter& rhs);
   InputFilter& operator=(const InputFilter& rhs);

@@ -87,6 +87,8 @@ class InputHandler_Stac2EventQueue : public InputHandler {
   static int InputThread_Start(void* p);
   void InputThreadMain();
 
+  void BroadcastFullSensorState(uint32_t local);
+
   bool SendCommand(
       uint8_t opcode,
       std::array<uint8_t, STAC2EVENTQUEUE_PACKETSIZE>& response);

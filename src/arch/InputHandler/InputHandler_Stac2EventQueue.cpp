@@ -12,6 +12,7 @@
 #include "Game.h"
 #include "GameInput.h"
 #include "GameState.h"
+#include "InputFilter.h"
 #include "InputMapper.h"
 #include "LightsManager.h"
 #include "PrefsManager.h"
@@ -27,6 +28,53 @@
 REGISTER_INPUT_HANDLER_CLASS(Stac2EventQueue);
 
 constexpr uint64_t ONE_SECOND_IN_MICROSECONDS_ULL = 1000000ULL;
+
+// used for converting the bit positions into physical sensor locations.
+struct SensorBitMapping {
+  PadPanel panel;
+  PadSensor sensor;
+};
+
+static constexpr SensorBitMapping sensorBitMappingDance[] = {
+    {PadPanel::Up, PadSensor::Top},     {PadPanel::Up, PadSensor::Bottom},
+    {PadPanel::Up, PadSensor::Left},    {PadPanel::Up, PadSensor::Right},
+
+    {PadPanel::Down, PadSensor::Top},   {PadPanel::Down, PadSensor::Bottom},
+    {PadPanel::Down, PadSensor::Left},  {PadPanel::Down, PadSensor::Right},
+
+    {PadPanel::Left, PadSensor::Top},   {PadPanel::Left, PadSensor::Bottom},
+    {PadPanel::Left, PadSensor::Left},  {PadPanel::Left, PadSensor::Right},
+
+    {PadPanel::Right, PadSensor::Top},  {PadPanel::Right, PadSensor::Bottom},
+    {PadPanel::Right, PadSensor::Left}, {PadPanel::Right, PadSensor::Right},
+};
+
+static constexpr SensorBitMapping sensorBitMappingPump[] = {
+    {PadPanel::UpLeft, PadSensor::Top},
+    {PadPanel::UpLeft, PadSensor::Bottom},
+    {PadPanel::UpLeft, PadSensor::Left},
+    {PadPanel::UpLeft, PadSensor::Right},
+
+    {PadPanel::UpRight, PadSensor::Top},
+    {PadPanel::UpRight, PadSensor::Bottom},
+    {PadPanel::UpRight, PadSensor::Left},
+    {PadPanel::UpRight, PadSensor::Right},
+
+    {PadPanel::Center, PadSensor::Top},
+    {PadPanel::Center, PadSensor::Bottom},
+    {PadPanel::Center, PadSensor::Left},
+    {PadPanel::Center, PadSensor::Right},
+
+    {PadPanel::DownLeft, PadSensor::Top},
+    {PadPanel::DownLeft, PadSensor::Bottom},
+    {PadPanel::DownLeft, PadSensor::Left},
+    {PadPanel::DownLeft, PadSensor::Right},
+
+    {PadPanel::DownRight, PadSensor::Top},
+    {PadPanel::DownRight, PadSensor::Bottom},
+    {PadPanel::DownRight, PadSensor::Left},
+    {PadPanel::DownRight, PadSensor::Right},
+};
 
 InputHandler_Stac2EventQueue::InputHandler_Stac2EventQueue() {
   m_bShutdown = false;
@@ -127,6 +175,36 @@ uint64_t InputHandler_Stac2EventQueue::CheckRTTTime() {
   return usbRoundTripTimeUs;
 }
 
+void InputHandler_Stac2EventQueue::BroadcastFullSensorState(uint32_t state) {
+  // check to see which game we are running as it can change during gameplay.
+  const InputScheme* pInput = &GAMESTATE->GetCurrentGame()->m_InputScheme;
+  std::string sInputName = pInput->m_szName;
+  bool isDance = EqualsNoCase(sInputName, "dance");
+
+  // swap the mapping depending on the game type.
+  const auto& sensorBitMapping =
+      isDance ? sensorBitMappingDance : sensorBitMappingPump;
+
+  const SensorBitMapping* mapping;
+  size_t mappingSize;
+
+  if (isDance) {
+    mapping = sensorBitMappingDance;
+    mappingSize = std::size(sensorBitMappingDance);
+  } else {
+    mapping = sensorBitMappingPump;
+    mappingSize = std::size(sensorBitMappingPump);
+  }
+
+  for (size_t bit = 0; bit < mappingSize; ++bit) {
+    const auto& mapping = sensorBitMapping[bit];
+
+    INPUTFILTER->setFullSensorState(
+        PLAYER_1, mapping.panel, mapping.sensor,
+        (state & (1u << bit)) ? 1.0f : 0.0f);
+  }
+}
+
 void InputHandler_Stac2EventQueue::InputThreadMain() {
   std::array<uint8_t, STAC2EVENTQUEUE_PACKETSIZE> res;
 
@@ -165,9 +243,13 @@ void InputHandler_Stac2EventQueue::InputThreadMain() {
         outgoing_event_t newEvent = {};
         std::memcpy(&newEvent, &res[offset], sizeof(newEvent));
 
+        // allow the engine to know when there are debug sensors and their
+        // current state
+        BroadcastFullSensorState(newEvent.btn_state);
+
         // only let the top 5bits pass through, since they are the "muxed"
         // values.
-        newEvent.btn_state >>= 27;
+        uint8_t muxedButtons = (newEvent.btn_state >> 27) & 0xFF;
 
         // use the start time to make a game engine time
         // the time we started + half the time it takes to
@@ -180,8 +262,8 @@ void InputHandler_Stac2EventQueue::InputThreadMain() {
             eventTimeUs / ONE_SECOND_IN_MICROSECONDS_ULL,
             (eventTimeUs % ONE_SECOND_IN_MICROSECONDS_ULL));
 
-        // push it to the engine
-        PushInputStateToEngine(newEvent.btn_state, eventTime);
+        // push the muxed button state to the engine
+        PushInputStateToEngine(muxedButtons, eventTime);
 
         // iterate by sizeof(outgoing_event_t)
         offset += sizeof(outgoing_event_t);
