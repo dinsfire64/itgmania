@@ -108,17 +108,34 @@ void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
       break;
   }
 
-  // all buttons here are active low.
-  INPUTFILTER->setFullSensorState(
-      pn, PadPanel::UpLeft, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
-  INPUTFILTER->setFullSensorState(
-      pn, PadPanel::UpRight, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
-  INPUTFILTER->setFullSensorState(
-      pn, PadPanel::Center, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
-  INPUTFILTER->setFullSensorState(
-      pn, PadPanel::DownLeft, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
-  INPUTFILTER->setFullSensorState(
-      pn, PadPanel::DownRight, currSensor, (state.btn_LR_START) ? 0.0f : 1.0f);
+  // check to see which game we are running as it can change during gameplay.
+  const InputScheme* pInput = &GAMESTATE->GetCurrentGame()->m_InputScheme;
+  std::string sInputName = pInput->m_szName;
+
+  // all buttons here are active low, so set to zero when "true"
+  if (EqualsNoCase(sInputName, "dance")) {
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::Up, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::Down, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::Left, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::Right, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
+
+  } else if (EqualsNoCase(sInputName, "pump")) {
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::UpLeft, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::UpRight, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::Center, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::DownLeft, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
+    INPUTFILTER->setFullSensorState(
+        pn, PadPanel::DownRight, currSensor,
+        (state.btn_LR_START) ? 0.0f : 1.0f);
+  }
 }
 
 void InputHandler_PumpHID::InputThreadMain() {
