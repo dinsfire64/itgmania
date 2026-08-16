@@ -51,7 +51,7 @@
 #define STAC2_CONFIG_OPCODE_GETTIME 0x10
 #define STAC2_CONFIG_OPCODE_ENABLE_EVENT_QUEUE 0x11
 #define STAC2_CONFIG_OPCODE_READ_EVENT_QUEUE 0x0F
-#define STAC2_CONFIG_DISCONNECT 0x0A
+#define STAC2_CONFIG_OPCODE_DISCONNECT 0x0A
 #define STAC2_CONFIG_ERROR 0xFF
 
 // this struct is on packed by the microcontroller, so we need to match it.

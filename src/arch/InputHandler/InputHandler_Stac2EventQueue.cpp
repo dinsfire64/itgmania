@@ -125,7 +125,7 @@ InputHandler_Stac2EventQueue::~InputHandler_Stac2EventQueue() {
 
   if (IsConnected()) {
     std::array<uint8_t, STAC2EVENTQUEUE_PACKETSIZE> res;
-    SendCommand(STAC2_CONFIG_DISCONNECT, res);
+    SendCommand(STAC2_CONFIG_OPCODE_DISCONNECT, res);
   }
 }
 
