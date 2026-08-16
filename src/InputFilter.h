@@ -79,10 +79,6 @@ constexpr size_t NUM_SENSORS = static_cast<size_t>(PadSensor::MAX);
 struct PadSensorState {
   float intensity[NUM_PANELS][NUM_SENSORS] = {};
 
-  float& Get(PadPanel panel, PadSensor sensor) {
-    return intensity[static_cast<int>(panel)][static_cast<int>(sensor)];
-  }
-
   const float& Get(PadPanel panel, PadSensor sensor) const {
     return intensity[static_cast<int>(panel)][static_cast<int>(sensor)];
   }
