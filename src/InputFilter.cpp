@@ -525,7 +525,7 @@ class LunaInputFilter : public Luna<InputFilter> {
       lua_createtable(L, 0, NUM_PANELS);
 
       for (size_t panel = 0; panel < NUM_PANELS; ++panel) {
-        lua_createtable(L, 0, NUM_PANELS);
+        lua_createtable(L, 0, NUM_SENSORS);
 
         for (size_t sensor = 0; sensor < NUM_SENSORS; ++sensor) {
           lua_pushnumber(
