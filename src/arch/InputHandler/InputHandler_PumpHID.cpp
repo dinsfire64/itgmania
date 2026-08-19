@@ -145,6 +145,8 @@ void InputHandler_PumpHID::InputThreadMain() {
   uint32_t prevInput = 0;
   LightsState prevLS = {};
 
+  pumphid_output_state_t previous_sensor_change = {};
+
   while (!m_bShutdown) {
     newLS = LightsDriver_Export::GetState();
 
@@ -153,6 +155,7 @@ void InputHandler_PumpHID::InputThreadMain() {
     // know it hasn't changed.
     if (prevLS != newLS) {
       CreateLightingMessage(newLS);
+      prevLS = newLS;
     }
 
     // hidapi always wants a report id for the device
@@ -183,15 +186,25 @@ void InputHandler_PumpHID::InputThreadMain() {
     // don't flood the engine with states that are not different.
     if (prevInput != newInput) {
       PushInputStateToEngine(newInput);
-
-      BroadcastFullSensorStateHelper(msg_from_device);
-
-      // debugging pay no attention
-      // LOG->Info("%d | %08x", readRtn, newInput);
+      prevInput = newInput;
     }
 
-    prevLS = newLS;
-    prevInput = newInput;
+    // we have to separately compare the sensor states in the event the whole
+    // panel is being pressed, but the sensors in them have swapped.
+    // we can't rely on PumpHIDToLocalState changes to fire off this event since
+    // that decimates the sensor information into a button state.
+    bool sensors_changed =
+        memcmp(
+            msg_from_device.p1_sensor, previous_sensor_change.p1_sensor,
+            sizeof(msg_from_device.p1_sensor)) != 0 ||
+        memcmp(
+            msg_from_device.p2_sensor, previous_sensor_change.p2_sensor,
+            sizeof(msg_from_device.p2_sensor)) != 0;
+
+    if (sensors_changed) {
+      BroadcastFullSensorStateHelper(msg_from_device);
+      previous_sensor_change = msg_from_device;
+    }
   }
 }
 
