@@ -79,18 +79,10 @@ int InputHandler_PumpHID::InputThread_Start(void* p) {
 }
 
 void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
-    pumphid_output_state_t state) {
-  for (size_t i = 0; i < PUMP_HID_NUMOFSENSORS; i++) {
-    BroadcastFullSensorStateHelper(PLAYER_1, i, state.p1_sensor[i]);
-    BroadcastFullSensorStateHelper(PLAYER_2, i, state.p2_sensor[i]);
-  }
-}
-
-void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
-    PlayerNumber pn, uint8_t index, pumphid_player_byte_t state) {
+    PlayerNumber pn, uint8_t sensor_index, pumphid_player_byte_t state) {
   PadSensor currSensor = PadSensor::Top;
 
-  switch (index) {
+  switch (sensor_index) {
     case 0:
       currSensor = PadSensor::Right;
       break;
@@ -104,7 +96,7 @@ void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
       currSensor = PadSensor::Top;
       break;
     default:
-      LOG->Warn("Invalid sensor position %d", index);
+      LOG->Warn("Invalid sensor position %d", sensor_index);
       break;
   }
 
@@ -145,7 +137,8 @@ void InputHandler_PumpHID::InputThreadMain() {
   uint32_t prevInput = 0;
   LightsState prevLS = {};
 
-  pumphid_output_state_t previous_sensor_change = {};
+  pumphid_player_byte_t prev_p1_sensor[PUMP_HID_NUMOFSENSORS];
+  pumphid_player_byte_t prev_p2_sensor[PUMP_HID_NUMOFSENSORS];
 
   while (!m_bShutdown) {
     newLS = LightsDriver_Export::GetState();
@@ -193,17 +186,17 @@ void InputHandler_PumpHID::InputThreadMain() {
     // panel is being pressed, but the sensors in them have swapped.
     // we can't rely on PumpHIDToLocalState changes to fire off this event since
     // that decimates the sensor information into a button state.
-    bool sensors_changed =
-        memcmp(
-            msg_from_device.p1_sensor, previous_sensor_change.p1_sensor,
-            sizeof(msg_from_device.p1_sensor)) != 0 ||
-        memcmp(
-            msg_from_device.p2_sensor, previous_sensor_change.p2_sensor,
-            sizeof(msg_from_device.p2_sensor)) != 0;
-
-    if (sensors_changed) {
-      BroadcastFullSensorStateHelper(msg_from_device);
-      previous_sensor_change = msg_from_device;
+    for (int i = 0; i < PUMP_HID_NUMOFSENSORS; i++) {
+      if (msg_from_device.p1_sensor[i].raw != prev_p1_sensor[i].raw) {
+        BroadcastFullSensorStateHelper(
+            PLAYER_1, i, msg_from_device.p1_sensor[i]);
+        prev_p1_sensor[i] = msg_from_device.p1_sensor[i];
+      }
+      if (msg_from_device.p2_sensor[i].raw != prev_p2_sensor[i].raw) {
+        BroadcastFullSensorStateHelper(
+            PLAYER_2, i, msg_from_device.p2_sensor[i]);
+        prev_p2_sensor[i] = msg_from_device.p2_sensor[i];
+      }
     }
   }
 }

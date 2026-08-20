@@ -246,10 +246,8 @@ class InputHandler_PumpHID : public InputHandler {
   bool m_bShutdown;
   RageThread InputThread;
 
-  void BroadcastFullSensorStateHelper(pumphid_output_state_t state);
-
   void BroadcastFullSensorStateHelper(
-      PlayerNumber pn, uint8_t index, pumphid_player_byte_t state);
+      PlayerNumber pn, uint8_t sensor_index, pumphid_player_byte_t state);
 
   uint32_t PumpHIDToLocalState(pumphid_output_state_t from_dev);
 
