@@ -132,13 +132,13 @@ void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
 
 void InputHandler_PumpHID::InputThreadMain() {
   uint32_t newInput = 0;
-  LightsState newLS;
+  LightsState newLS = {};
 
   uint32_t prevInput = 0;
   LightsState prevLS = {};
 
-  pumphid_player_byte_t prev_p1_sensor[PUMP_HID_NUMOFSENSORS];
-  pumphid_player_byte_t prev_p2_sensor[PUMP_HID_NUMOFSENSORS];
+  pumphid_player_byte_t prev_p1_sensor[PUMP_HID_NUMOFSENSORS] = {};
+  pumphid_player_byte_t prev_p2_sensor[PUMP_HID_NUMOFSENSORS] = {};
 
   while (!m_bShutdown) {
     newLS = LightsDriver_Export::GetState();
