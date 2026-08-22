@@ -28,17 +28,17 @@ XToString(InputEventType);
 XToLocalizedString(InputEventType);
 LuaXType(InputEventType);
 
-static constexpr const char* PadPanelNames[static_cast<size_t>(PadPanel::MAX)] =
-    {"UpLeft", "Up",       "UpRight", "Left",     "Center",
-     "Right",  "DownLeft", "Down",    "DownRight"};
+static const char* PadPanelNames[] = {"UpLeft",   "Up",     "UpRight",
+                                      "Left",     "Center", "Right",
+                                      "DownLeft", "Down",   "DownRight"};
+XToString(PadPanel);
+StringToX(PadPanel);
 
-static constexpr const char*
-    PadSensorNames[static_cast<size_t>(PadSensor::MAX)] = {
-        "Top",
-        "Right",
-        "Bottom",
-        "Left",
+static const char* PadSensorNames[] = {
+    "Top", "Right", "Bottom", "Left", "Center",
 };
+XToString(PadSensor);
+StringToX(PadSensor);
 
 struct ButtonState {
   ButtonState();
@@ -480,8 +480,7 @@ void InputFilter::UpdateMouseWheel(float _fZ) { m_MouseCoords.fZ = _fZ; }
 
 bool InputFilter::setFullSensorState(
     PlayerNumber pn, PadPanel panel, PadSensor sensor, float intensity) {
-  if (pn < NUM_PlayerNumber && panel < PadPanel::MAX &&
-      sensor < PadSensor::MAX) {
+  if (pn < NUM_PlayerNumber && panel < NUM_PadPanel && sensor < NUM_PadSensor) {
     m_Sensors[pn].Set(panel, sensor, intensity);
     return true;
   }
@@ -522,12 +521,12 @@ class LunaInputFilter : public Luna<InputFilter> {
     lua_createtable(L, NUM_PLAYERS, 0);
 
     for (size_t player = 0; player < NUM_PLAYERS; ++player) {
-      lua_createtable(L, 0, NUM_PANELS);
+      lua_createtable(L, 0, NUM_PadPanel);
 
-      for (size_t panel = 0; panel < NUM_PANELS; ++panel) {
-        lua_createtable(L, 0, NUM_SENSORS);
+      for (size_t panel = 0; panel < NUM_PadPanel; ++panel) {
+        lua_createtable(L, 0, NUM_PadSensor);
 
-        for (size_t sensor = 0; sensor < NUM_SENSORS; ++sensor) {
+        for (size_t sensor = 0; sensor < NUM_PadSensor; ++sensor) {
           lua_pushnumber(
               L, p->getFullSensorState((PlayerNumber)player)
                      ->intensity[panel][sensor]);

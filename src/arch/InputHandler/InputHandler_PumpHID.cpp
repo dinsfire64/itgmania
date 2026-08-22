@@ -80,20 +80,20 @@ int InputHandler_PumpHID::InputThread_Start(void* p) {
 
 void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
     PlayerNumber pn, uint8_t sensor_index, pumphid_player_byte_t state) {
-  PadSensor currSensor = PadSensor::Top;
+  PadSensor currSensor = PadSensor_Top;
 
   switch (sensor_index) {
     case 0:
-      currSensor = PadSensor::Right;
+      currSensor = PadSensor_Right;
       break;
     case 1:
-      currSensor = PadSensor::Left;
+      currSensor = PadSensor_Left;
       break;
     case 2:
-      currSensor = PadSensor::Bottom;
+      currSensor = PadSensor_Bottom;
       break;
     case 3:
-      currSensor = PadSensor::Top;
+      currSensor = PadSensor_Top;
       break;
     default:
       LOG->Warn("Invalid sensor position %d", sensor_index);
@@ -107,26 +107,25 @@ void InputHandler_PumpHID::BroadcastFullSensorStateHelper(
   // all buttons here are active low, so set to zero when "true"
   if (EqualsNoCase(sInputName, "dance")) {
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::Up, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
+        pn, PadPanel_Up, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::Down, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
+        pn, PadPanel_Down, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::Left, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
+        pn, PadPanel_Left, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::Right, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
+        pn, PadPanel_Right, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
 
   } else if (EqualsNoCase(sInputName, "pump")) {
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::UpLeft, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
+        pn, PadPanel_UpLeft, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::UpRight, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
+        pn, PadPanel_UpRight, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::Center, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
+        pn, PadPanel_Center, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::DownLeft, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
+        pn, PadPanel_DownLeft, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
     INPUTFILTER->setFullSensorState(
-        pn, PadPanel::DownRight, currSensor,
-        (state.btn_LR_START) ? 0.0f : 1.0f);
+        pn, PadPanel_DownRight, currSensor, (state.btn_LR_START) ? 0.0f : 1.0f);
   }
 }
 

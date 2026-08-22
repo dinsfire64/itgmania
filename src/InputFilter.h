@@ -50,34 +50,34 @@ struct MouseCoordinates {
 };
 
 // describes each of the panels of a single player dance pad
-enum class PadPanel {
-  UpLeft = 0,
-  Up,
-  UpRight,
-  Left,
-  Center,
-  Right,
-  DownLeft,
-  Down,
-  DownRight,
-  MAX
+enum PadPanel {
+  PadPanel_UpLeft = 0,
+  PadPanel_Up,
+  PadPanel_UpRight,
+  PadPanel_Left,
+  PadPanel_Center,
+  PadPanel_Right,
+  PadPanel_DownLeft,
+  PadPanel_Down,
+  PadPanel_DownRight,
+
+  NUM_PadPanel,
+  PadPanel_Invalid
 };
 
-constexpr size_t NUM_PANELS = static_cast<size_t>(PadPanel::MAX);
+enum PadSensor {
+  PadSensor_Top = 0,
+  PadSensor_Right,
+  PadSensor_Bottom,
+  PadSensor_Left,
+  PadSensor_Center,
 
-enum class PadSensor {
-  Top = 0,
-  Right,
-  Bottom,
-  Left,
-
-  MAX
+  NUM_PadSensor,
+  PadSensor_Invalid
 };
-
-constexpr size_t NUM_SENSORS = static_cast<size_t>(PadSensor::MAX);
 
 struct PadSensorState {
-  float intensity[NUM_PANELS][NUM_SENSORS] = {};
+  float intensity[NUM_PadPanel][NUM_PadSensor] = {};
 
   const float& Get(PadPanel panel, PadSensor sensor) const {
     return intensity[static_cast<int>(panel)][static_cast<int>(sensor)];

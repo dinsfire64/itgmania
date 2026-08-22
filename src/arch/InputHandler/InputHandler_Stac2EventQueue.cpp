@@ -36,44 +36,44 @@ struct SensorBitMapping {
 };
 
 static constexpr SensorBitMapping sensorBitMappingDance[] = {
-    {PadPanel::Up, PadSensor::Top},     {PadPanel::Up, PadSensor::Bottom},
-    {PadPanel::Up, PadSensor::Left},    {PadPanel::Up, PadSensor::Right},
+    {PadPanel_Up, PadSensor_Top},     {PadPanel_Up, PadSensor_Bottom},
+    {PadPanel_Up, PadSensor_Left},    {PadPanel_Up, PadSensor_Right},
 
-    {PadPanel::Down, PadSensor::Top},   {PadPanel::Down, PadSensor::Bottom},
-    {PadPanel::Down, PadSensor::Left},  {PadPanel::Down, PadSensor::Right},
+    {PadPanel_Down, PadSensor_Top},   {PadPanel_Down, PadSensor_Bottom},
+    {PadPanel_Down, PadSensor_Left},  {PadPanel_Down, PadSensor_Right},
 
-    {PadPanel::Left, PadSensor::Top},   {PadPanel::Left, PadSensor::Bottom},
-    {PadPanel::Left, PadSensor::Left},  {PadPanel::Left, PadSensor::Right},
+    {PadPanel_Left, PadSensor_Top},   {PadPanel_Left, PadSensor_Bottom},
+    {PadPanel_Left, PadSensor_Left},  {PadPanel_Left, PadSensor_Right},
 
-    {PadPanel::Right, PadSensor::Top},  {PadPanel::Right, PadSensor::Bottom},
-    {PadPanel::Right, PadSensor::Left}, {PadPanel::Right, PadSensor::Right},
+    {PadPanel_Right, PadSensor_Top},  {PadPanel_Right, PadSensor_Bottom},
+    {PadPanel_Right, PadSensor_Left}, {PadPanel_Right, PadSensor_Right},
 };
 
 static constexpr SensorBitMapping sensorBitMappingPump[] = {
-    {PadPanel::UpLeft, PadSensor::Top},
-    {PadPanel::UpLeft, PadSensor::Bottom},
-    {PadPanel::UpLeft, PadSensor::Left},
-    {PadPanel::UpLeft, PadSensor::Right},
+    {PadPanel_UpLeft, PadSensor_Top},
+    {PadPanel_UpLeft, PadSensor_Bottom},
+    {PadPanel_UpLeft, PadSensor_Left},
+    {PadPanel_UpLeft, PadSensor_Right},
 
-    {PadPanel::UpRight, PadSensor::Top},
-    {PadPanel::UpRight, PadSensor::Bottom},
-    {PadPanel::UpRight, PadSensor::Left},
-    {PadPanel::UpRight, PadSensor::Right},
+    {PadPanel_UpRight, PadSensor_Top},
+    {PadPanel_UpRight, PadSensor_Bottom},
+    {PadPanel_UpRight, PadSensor_Left},
+    {PadPanel_UpRight, PadSensor_Right},
 
-    {PadPanel::Center, PadSensor::Top},
-    {PadPanel::Center, PadSensor::Bottom},
-    {PadPanel::Center, PadSensor::Left},
-    {PadPanel::Center, PadSensor::Right},
+    {PadPanel_Center, PadSensor_Top},
+    {PadPanel_Center, PadSensor_Bottom},
+    {PadPanel_Center, PadSensor_Left},
+    {PadPanel_Center, PadSensor_Right},
 
-    {PadPanel::DownLeft, PadSensor::Top},
-    {PadPanel::DownLeft, PadSensor::Bottom},
-    {PadPanel::DownLeft, PadSensor::Left},
-    {PadPanel::DownLeft, PadSensor::Right},
+    {PadPanel_DownLeft, PadSensor_Top},
+    {PadPanel_DownLeft, PadSensor_Bottom},
+    {PadPanel_DownLeft, PadSensor_Left},
+    {PadPanel_DownLeft, PadSensor_Right},
 
-    {PadPanel::DownRight, PadSensor::Top},
-    {PadPanel::DownRight, PadSensor::Bottom},
-    {PadPanel::DownRight, PadSensor::Left},
-    {PadPanel::DownRight, PadSensor::Right},
+    {PadPanel_DownRight, PadSensor_Top},
+    {PadPanel_DownRight, PadSensor_Bottom},
+    {PadPanel_DownRight, PadSensor_Left},
+    {PadPanel_DownRight, PadSensor_Right},
 };
 
 InputHandler_Stac2EventQueue::InputHandler_Stac2EventQueue() {
