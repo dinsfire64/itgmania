@@ -298,12 +298,14 @@ else() # Unix/Linux
                 "arch/InputHandler/InputHandler_Linux_Joystick.cpp"
                 "arch/InputHandler/InputHandler_Linux_Event.cpp"
                 "arch/InputHandler/InputHandler_Linux_PIUIO.cpp"
+                "arch/InputHandler/InputHandler_Linux_PIUIO_Debug.cpp"
                 "arch/InputHandler/InputHandler_SextetStream.cpp")
     list(APPEND SMDATA_ARCH_INPUT_SRC
                 "arch/InputHandler/LinuxInputManager.h"
                 "arch/InputHandler/InputHandler_Linux_Joystick.h"
                 "arch/InputHandler/InputHandler_Linux_Event.h"
                 "arch/InputHandler/InputHandler_Linux_PIUIO.h"
+                "arch/InputHandler/InputHandler_Linux_PIUIO_Debug.h"
                 "arch/InputHandler/InputHandler_SextetStream.h")
   endif()
   if(X11_FOUND)
