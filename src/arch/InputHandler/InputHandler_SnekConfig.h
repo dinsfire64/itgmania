@@ -72,7 +72,7 @@ class InputHandler_SnekConfig : public InputHandler {
   bool m_bShutdown;
   RageThread* DebugThread = nullptr;
 
-  uint32_t sensorState[4] = {};
+  uint32_t sensorState[SNEK_CONFIG_NUM_SENSORS] = {};
 
   static int InputThread_Start(void* p);
   void InputThreadMain();
