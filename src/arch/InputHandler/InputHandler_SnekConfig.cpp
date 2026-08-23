@@ -142,7 +142,7 @@ void InputHandler_SnekConfig::StartSensorDebugging() {
 }
 
 void InputHandler_SnekConfig::StopSensorDebugging() {
-  if (DebugThread != nullptr && DebugThread->IsCreated()) {
+  if (DebugThread != nullptr && !m_bShutdown) {
     m_bShutdown = true;
     DebugThread->Wait();
 
