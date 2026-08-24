@@ -14,7 +14,6 @@
 #include "GameInput.h"
 #include "GameState.h"
 #include "InputFilter.h"
-#include "InputHandler_PumpHID.h"
 #include "InputMapper.h"
 #include "LightsManager.h"
 #include "PrefsManager.h"
@@ -28,12 +27,6 @@
 #include "archutils/Common/HidDevice.h"
 
 REGISTER_INPUT_HANDLER_CLASS(SnekConfig);
-
-struct SnekBitMapping {
-  uint bitPosition;
-  PlayerNumber pn;
-  PadPanel panel;
-};
 
 // this is the bit position of the response, mapped to the panel number it
 // matches to.
@@ -99,7 +92,7 @@ int InputHandler_SnekConfig::InputThread_Start(void* p) {
 }
 
 void InputHandler_SnekConfig::BroadcastFullSensorStateHelper(
-    uint32_t state, uint8_t sensor_index) {
+    SnekBitMapping mapping, uint8_t sensor_index, bool isPressed) {
   PadSensor currSensor = PadSensor_Top;
 
   switch (sensor_index) {
@@ -120,13 +113,8 @@ void InputHandler_SnekConfig::BroadcastFullSensorStateHelper(
       break;
   }
 
-  for (size_t bit = 0; bit < std::size(sensorBitMappingDance); ++bit) {
-    const auto& mapping = sensorBitMappingDance[bit];
-
-    INPUTFILTER->setFullSensorState(
-        mapping.pn, mapping.panel, currSensor,
-        (state & (1u << mapping.bitPosition)) ? 1.0f : 0.0f);
-  }
+  INPUTFILTER->setFullSensorState(
+      mapping.pn, mapping.panel, currSensor, isPressed ? 1.0f : 0.0f);
 }
 
 void InputHandler_SnekConfig::StartSensorDebugging() {
@@ -163,7 +151,24 @@ void InputHandler_SnekConfig::InputThreadMain() {
     std::memcpy(&newState, &res[2], sizeof(newState));
 
     if (newState != sensorState[sensorNumber]) {
-      BroadcastFullSensorStateHelper(newState, sensorNumber);
+      // use xor to fire events only on the bits that have changed.
+      uint32_t changed = newState ^ sensorState[sensorNumber];
+
+      // walk through only the bits are are interested in (via the sensor
+      // mapping)
+      for (const auto& mapping : sensorBitMappingDance) {
+        const uint32_t mask = 1u << mapping.bitPosition;
+
+        if ((changed & mask) == 0) {
+          // This sensor didn't change.
+          continue;
+        }
+
+        const bool pressed = (newState & mask) != 0;
+
+        // Only send an event for this changed sensor.
+        BroadcastFullSensorStateHelper(mapping, sensorNumber, pressed);
+      }
 
       // inform listeners of a new state, as during this debug state the snek
       // will not fire events over the gamepad endpoint

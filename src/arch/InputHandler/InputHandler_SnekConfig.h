@@ -25,8 +25,10 @@
 #include <string>
 #include <vector>
 
+#include "InputFilter.h"
 #include "InputHandler.h"
 #include "LightsManager.h"
+#include "PlayerNumber.h"
 #include "RageInputDevice.h"
 #include "RageThreads.h"
 #include "archutils/Common/HidDevice.h"
@@ -53,6 +55,12 @@
 
 #define SNEK_CONFIG_NUM_SENSORS 4
 
+struct SnekBitMapping {
+  uint bitPosition;
+  PlayerNumber pn;
+  PadPanel panel;
+};
+
 class InputHandler_SnekConfig : public InputHandler {
  public:
   InputHandler_SnekConfig();
@@ -77,7 +85,8 @@ class InputHandler_SnekConfig : public InputHandler {
   static int InputThread_Start(void* p);
   void InputThreadMain();
 
-  void BroadcastFullSensorStateHelper(uint32_t state, uint8_t sensor_index);
+  void BroadcastFullSensorStateHelper(
+      SnekBitMapping mapping, uint8_t sensor_index, bool isPressed);
   void SendSafeDisconnect();
 
   bool SendCommand(
