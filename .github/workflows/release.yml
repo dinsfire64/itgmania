@@ -1,8 +1,5 @@
 on:
-  push:
-    branches:
-      - beta
-      - release
+  workflow_dispatch:
 
 name: Release
 
