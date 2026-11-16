@@ -165,7 +165,6 @@ void InputHandler_Linux_PIUIO_Debug::InputThreadMain() {
       static_cast<const volatile uint8_t (*)[FULL_STATE_SIZE]>(mapped);
 
   piuio_player_byte_t prev[NUM_OF_PADS][NUM_OF_SENSORS] = {};
-  bool forceRedraw = false;
 
   while (!m_bShutdown) {
     for (size_t i = 0; i < NUM_OF_SENSORS; ++i) {
@@ -178,15 +177,8 @@ void InputHandler_Linux_PIUIO_Debug::InputThreadMain() {
 
           BroadcastFullSensorStateHelper(
               player == 0 ? PLAYER_1 : PLAYER_2, i, previous);
-
-          forceRedraw = true;
         }
       }
-    }
-
-    if (forceRedraw) {
-      MESSAGEMAN->Broadcast("TestSensorRedrawEvent");
-      forceRedraw = false;
     }
 
     // limit the polling of this thread to prevent additional overhead.

@@ -68,7 +68,7 @@ class InputHandler_Linux_PIUIO_Debug : public InputHandler {
 
   int fd = -1;
 
-  bool m_bShutdown = true;
+  std::atomic<bool> m_bShutdown = true;
   RageThread* DebugThread = nullptr;
 };
 
