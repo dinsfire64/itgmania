@@ -30,6 +30,7 @@ class InputHandler_Linux_PIUIO_Debug : public InputHandler {
  public:
   InputHandler_Linux_PIUIO_Debug();
   ~InputHandler_Linux_PIUIO_Debug();
+  static bool ShouldAutoLoad();
   void GetDevicesAndDescriptions(std::vector<InputDeviceInfo>& vDevicesOut);
 
   void StartSensorDebugging();
@@ -63,7 +64,7 @@ class InputHandler_Linux_PIUIO_Debug : public InputHandler {
   void InputThreadMain();
 
   // memory mapped info from the kernel
-  void* mapped;
+  void* mapped = nullptr;
 
   int fd = -1;
 

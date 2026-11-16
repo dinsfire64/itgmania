@@ -20,6 +20,12 @@
 #include "arch/InputHandler/InputHandler.h"
 
 REGISTER_INPUT_HANDLER_CLASS2(PIUIO_Debug, Linux_PIUIO_Debug);
+REGISTER_AUTODETECT_INPUT_HANDLER_CLASS2(PIUIO_Debug, Linux_PIUIO_Debug);
+
+bool InputHandler_Linux_PIUIO_Debug::ShouldAutoLoad() {
+  struct stat st;
+  return stat(DEVICE_PATH, &st) == 0 && S_ISCHR(st.st_mode);
+}
 
 InputHandler_Linux_PIUIO_Debug::InputHandler_Linux_PIUIO_Debug() {
   // do not start the thread when initialized.
@@ -84,6 +90,10 @@ InputHandler_Linux_PIUIO_Debug::~InputHandler_Linux_PIUIO_Debug() {
   // Shut down the thread if it's running
   StopSensorDebugging();
 
+  if (mapped != nullptr && mapped != MAP_FAILED) {
+    munmap(mapped, sysconf(_SC_PAGESIZE));
+  }
+
   if (fd >= 0) {
     close(fd);
   }
@@ -96,20 +106,20 @@ int InputHandler_Linux_PIUIO_Debug::InputThread_Start(void* p) {
 
 void InputHandler_Linux_PIUIO_Debug::BroadcastFullSensorStateHelper(
     PlayerNumber pn, uint8_t sensor_index, piuio_player_byte_t state) {
-  PadSensor currSensor = PadSensor_Top;
+  PadSensor curr_sensor = PadSensor_TopCenter;
 
   switch (sensor_index) {
     case 0:
-      currSensor = PadSensor_Right;
+      curr_sensor = PadSensor_RightCenter;
       break;
     case 1:
-      currSensor = PadSensor_Left;
+      curr_sensor = PadSensor_LeftCenter;
       break;
     case 2:
-      currSensor = PadSensor_Bottom;
+      curr_sensor = PadSensor_BottomCenter;
       break;
     case 3:
-      currSensor = PadSensor_Top;
+      curr_sensor = PadSensor_TopCenter;
       break;
     default:
       LOG->Warn("Invalid sensor position %d", sensor_index);
@@ -117,31 +127,31 @@ void InputHandler_Linux_PIUIO_Debug::BroadcastFullSensorStateHelper(
   }
 
   // check to see which game we are running as it can change during gameplay.
-  const InputScheme* pInput = &GAMESTATE->GetCurrentGame()->m_InputScheme;
-  std::string sInputName = pInput->m_szName;
+  const InputScheme* input = &GAMESTATE->GetCurrentGame()->input_scheme_;
+  const std::string& input_name = input->name_;
 
   // all buttons here are active low, so set to zero when "true"
-  if (EqualsNoCase(sInputName, "dance")) {
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_Up, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_Down, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_Left, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_Right, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
+  if (EqualsNoCase(input_name, "dance")) {
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_Up, curr_sensor, !state.btn_UL_U);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_Down, curr_sensor, !state.btn_UR_D);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_Left, curr_sensor, !state.btn_CN_L);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_Right, curr_sensor, !state.btn_LL_R);
 
-  } else if (EqualsNoCase(sInputName, "pump")) {
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_UpLeft, currSensor, (state.btn_UL_U) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_UpRight, currSensor, (state.btn_UR_D) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_Center, currSensor, (state.btn_CN_L) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_DownLeft, currSensor, (state.btn_LL_R) ? 0.0f : 1.0f);
-    INPUTFILTER->setFullSensorState(
-        pn, PadPanel_DownRight, currSensor, (state.btn_LR_START) ? 0.0f : 1.0f);
+  } else if (EqualsNoCase(input_name, "pump")) {
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_UpLeft, curr_sensor, !state.btn_UL_U);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_UpRight, curr_sensor, !state.btn_UR_D);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_Center, curr_sensor, !state.btn_CN_L);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_DownLeft, curr_sensor, !state.btn_LL_R);
+    INPUTFILTER->setFullSensorStateBinary(
+        pn, PadPanel_DownRight, curr_sensor, !state.btn_LR_START);
   }
 }
 
