@@ -1,75 +1,70 @@
 #ifndef INPUT_HANDLER_PIUIO_DEBUG
 #define INPUT_HANDLER_PIUIO_DEBUG
 
+#include <atomic>
+#include <cstddef>
+#include <cstdint>
+
 #include "InputHandler.h"
 #include "PlayerNumber.h"
 #include "RageInputDevice.h"
 #include "RageThreads.h"
 
-#pragma pack(push, 1)
-
-// definitions are Pump, then ITG in naming.
-// ex: UL for Up Left arrow, U for Up.
-typedef union {
-  struct {
-    bool btn_UL_U : 1;
-    bool btn_UR_D : 1;
-    bool btn_CN_L : 1;
-    bool btn_LL_R : 1;
-    bool btn_LR_START : 1;
-    bool btn_SELECT : 1;
-    bool btn_MENU_LEFT : 1;
-    bool btn_MENU_RIGHT : 1;
-  };
-  uint8_t raw;
-} piuio_player_byte_t;
-
-#pragma pack(pop)
-
 class InputHandler_Linux_PIUIO_Debug : public InputHandler {
  public:
   InputHandler_Linux_PIUIO_Debug();
-  ~InputHandler_Linux_PIUIO_Debug();
+  ~InputHandler_Linux_PIUIO_Debug() override;
+
   static bool ShouldAutoLoad();
-  void GetDevicesAndDescriptions(std::vector<InputDeviceInfo>& vDevicesOut);
+  void GetDevicesAndDescriptions(
+      std::vector<InputDeviceInfo>& devices_out) override;
 
-  void StartSensorDebugging();
-  void StopSensorDebugging();
+  void StartSensorDebugging() override;
+  void StopSensorDebugging() override;
 
-  bool IsConnected() { return fd >= 0; }
+  bool IsConnected() const { return fd_ >= 0 && mapped_ != nullptr; }
 
  private:
   // this matches the static path in the kernel module that exposes this
   // information.
   // see: https://github.com/dinsfire64/piuio (thank you djpohly)
-  static constexpr char DEVICE_PATH[] = "/dev/piuio_full0";
+  static constexpr char kDevicePath[] = "/dev/piuio_full0";
 
   // the piuio has eight byte states, and there are four sensors
-  static constexpr unsigned int FULL_STATE_SIZE = 8;
-  static constexpr unsigned int NUM_OF_SENSORS = 4;
-  static constexpr unsigned int NUM_OF_PADS = 2;
+  static constexpr size_t kFullStateSize = 8;
+  static constexpr size_t kNumSensors = 4;
+  static constexpr size_t kNumPads = 2;
+
+  // Definitions are Pump, then ITG in naming. For example, UL/U is the Pump
+  // up-left or dance up input. The device reports active-low button states.
+  static constexpr uint8_t kButtonUlU = 1U << 0;
+  static constexpr uint8_t kButtonUrD = 1U << 1;
+  static constexpr uint8_t kButtonCnL = 1U << 2;
+  static constexpr uint8_t kButtonLlR = 1U << 3;
+  static constexpr uint8_t kButtonLrStart = 1U << 4;
 
   // location of the pad state in each piuio message.
   // no other bytes change based on sensor, so we are only interested in these
   // two bytes.
-  static constexpr size_t playerIndex[NUM_OF_PADS] = {
+  static constexpr size_t kPlayerIndex[kNumPads] = {
       0,
       2,
   };
 
-  void BroadcastFullSensorStateHelper(
-      PlayerNumber pn, uint8_t sensor_index, piuio_player_byte_t state);
+  void QueueFullSensorState(
+      PlayerNumber pn, uint8_t sensor_index, uint8_t state);
 
   static int InputThread_Start(void* p);
   void InputThreadMain();
 
   // memory mapped info from the kernel
-  void* mapped = nullptr;
+  void* mapped_ = nullptr;
+  size_t mapping_size_ = 0;
 
-  int fd = -1;
+  int fd_ = -1;
 
-  std::atomic<bool> m_bShutdown = true;
-  RageThread* DebugThread = nullptr;
+  std::atomic<bool> shutdown_{true};
+  RageThread* debug_thread_ = nullptr;
 };
 
 #endif

@@ -1,11 +1,11 @@
 #include "InputHandler_Linux_PIUIO_Debug.h"
 
 #include <fcntl.h>
-#include <sys/fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <array>
 #include <cerrno>
 #include <cstring>
 
@@ -15,7 +15,6 @@
 #include "InputFilter.h"
 #include "RageInputDevice.h"
 #include "RageLog.h"
-#include "RageTimer.h"
 #include "RageUtil.h"
 #include "arch/InputHandler/InputHandler.h"
 
@@ -24,65 +23,76 @@ REGISTER_AUTODETECT_INPUT_HANDLER_CLASS2(PIUIO_Debug, Linux_PIUIO_Debug);
 
 bool InputHandler_Linux_PIUIO_Debug::ShouldAutoLoad() {
   struct stat st;
-  return stat(DEVICE_PATH, &st) == 0 && S_ISCHR(st.st_mode);
+  return stat(kDevicePath, &st) == 0 && S_ISCHR(st.st_mode);
 }
 
 InputHandler_Linux_PIUIO_Debug::InputHandler_Linux_PIUIO_Debug() {
-  // do not start the thread when initialized.
-  m_bShutdown = true;
-
-  fd = open(DEVICE_PATH, O_RDONLY);
-  if (fd < 0) {
+  fd_ = open(kDevicePath, O_RDONLY);
+  if (fd_ < 0) {
     LOG->Warn(
-        "Couldn't open PIUIO Debug device at %s %s", DEVICE_PATH,
+        "Couldn't open PIUIO Debug device at %s: %s", kDevicePath,
         strerror(errno));
     return;
   }
 
   struct stat st;
-  if (fstat(fd, &st) == -1) {
+  if (fstat(fd_, &st) == -1) {
     LOG->Warn("Couldn't stat PIUIO Debug device: %s", strerror(errno));
-    close(fd);
+    close(fd_);
+    fd_ = -1;
     return;
   }
 
   if (!S_ISCHR(st.st_mode)) {
-    LOG->Warn("Ignoring %s: not a character device", DEVICE_PATH);
-    close(fd);
+    LOG->Warn("Ignoring %s: not a character device", kDevicePath);
+    close(fd_);
+    fd_ = -1;
     return;
   }
 
-  const size_t page_size = sysconf(_SC_PAGESIZE);
-  mapped = mmap(nullptr, page_size, PROT_READ, MAP_SHARED, fd, 0);
-
-  if (mapped == MAP_FAILED) {
-    LOG->Warn("Could not memory map %s", DEVICE_PATH);
-    close(fd);
+  const long page_size = sysconf(_SC_PAGESIZE);
+  if (page_size <= 0) {
+    LOG->Warn("Could not determine system page size");
+    close(fd_);
+    fd_ = -1;
     return;
   }
 
-  LOG->Info("PIUIO Debug device %s opened", DEVICE_PATH);
+  mapping_size_ = static_cast<size_t>(page_size);
+  mapped_ = mmap(nullptr, mapping_size_, PROT_READ, MAP_SHARED, fd_, 0);
+
+  if (mapped_ == MAP_FAILED) {
+    LOG->Warn("Could not memory map %s: %s", kDevicePath, strerror(errno));
+    mapped_ = nullptr;
+    mapping_size_ = 0;
+    close(fd_);
+    fd_ = -1;
+    return;
+  }
+
+  LOG->Info("PIUIO Debug device %s opened", kDevicePath);
 }
 
 void InputHandler_Linux_PIUIO_Debug::StartSensorDebugging() {
-  if (!IsConnected() || DebugThread != nullptr) {
+  if (!IsConnected() || debug_thread_ != nullptr) {
     return;
   }
 
-  m_bShutdown = false;
+  shutdown_ = false;
 
-  DebugThread = new RageThread();
-  DebugThread->SetName("PIUIO debug thread");
-  DebugThread->Create(InputThread_Start, this);
+  debug_thread_ = new RageThread();
+  debug_thread_->SetName("PIUIO debug thread");
+  debug_thread_->Create(InputThread_Start, this);
 }
 
 void InputHandler_Linux_PIUIO_Debug::StopSensorDebugging() {
-  if (DebugThread != nullptr && !m_bShutdown) {
-    m_bShutdown = true;
-    DebugThread->Wait();
-
-    delete DebugThread;
-    DebugThread = nullptr;
+  if (debug_thread_ != nullptr) {
+    shutdown_ = true;
+    if (debug_thread_->IsCreated()) {
+      debug_thread_->Wait();
+    }
+    delete debug_thread_;
+    debug_thread_ = nullptr;
   }
 }
 
@@ -90,22 +100,25 @@ InputHandler_Linux_PIUIO_Debug::~InputHandler_Linux_PIUIO_Debug() {
   // Shut down the thread if it's running
   StopSensorDebugging();
 
-  if (mapped != nullptr && mapped != MAP_FAILED) {
-    munmap(mapped, sysconf(_SC_PAGESIZE));
+  if (mapped_ != nullptr) {
+    munmap(mapped_, mapping_size_);
+    mapped_ = nullptr;
+    mapping_size_ = 0;
   }
 
-  if (fd >= 0) {
-    close(fd);
+  if (fd_ >= 0) {
+    close(fd_);
+    fd_ = -1;
   }
 }
 
 int InputHandler_Linux_PIUIO_Debug::InputThread_Start(void* p) {
-  ((InputHandler_Linux_PIUIO_Debug*)p)->InputThreadMain();
+  static_cast<InputHandler_Linux_PIUIO_Debug*>(p)->InputThreadMain();
   return 0;
 }
 
-void InputHandler_Linux_PIUIO_Debug::BroadcastFullSensorStateHelper(
-    PlayerNumber pn, uint8_t sensor_index, piuio_player_byte_t state) {
+void InputHandler_Linux_PIUIO_Debug::QueueFullSensorState(
+    PlayerNumber pn, uint8_t sensor_index, uint8_t state) {
   PadSensor curr_sensor = PadSensor_TopCenter;
 
   switch (sensor_index) {
@@ -123,7 +136,7 @@ void InputHandler_Linux_PIUIO_Debug::BroadcastFullSensorStateHelper(
       break;
     default:
       LOG->Warn("Invalid sensor position %d", sensor_index);
-      break;
+      return;
   }
 
   // check to see which game we are running as it can change during gameplay.
@@ -133,50 +146,53 @@ void InputHandler_Linux_PIUIO_Debug::BroadcastFullSensorStateHelper(
   // all buttons here are active low, so set to zero when "true"
   if (EqualsNoCase(input_name, "dance")) {
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_Up, curr_sensor, !state.btn_UL_U);
+        pn, PadPanel_Up, curr_sensor, (state & kButtonUlU) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_Down, curr_sensor, !state.btn_UR_D);
+        pn, PadPanel_Down, curr_sensor, (state & kButtonUrD) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_Left, curr_sensor, !state.btn_CN_L);
+        pn, PadPanel_Left, curr_sensor, (state & kButtonCnL) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_Right, curr_sensor, !state.btn_LL_R);
+        pn, PadPanel_Right, curr_sensor, (state & kButtonLlR) == 0);
 
   } else if (EqualsNoCase(input_name, "pump")) {
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_UpLeft, curr_sensor, !state.btn_UL_U);
+        pn, PadPanel_UpLeft, curr_sensor, (state & kButtonUlU) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_UpRight, curr_sensor, !state.btn_UR_D);
+        pn, PadPanel_UpRight, curr_sensor, (state & kButtonUrD) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_Center, curr_sensor, !state.btn_CN_L);
+        pn, PadPanel_Center, curr_sensor, (state & kButtonCnL) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_DownLeft, curr_sensor, !state.btn_LL_R);
+        pn, PadPanel_DownLeft, curr_sensor, (state & kButtonLlR) == 0);
     INPUTFILTER->setFullSensorStateBinary(
-        pn, PadPanel_DownRight, curr_sensor, !state.btn_LR_START);
+        pn, PadPanel_DownRight, curr_sensor, (state & kButtonLrStart) == 0);
   }
 }
 
 void InputHandler_Linux_PIUIO_Debug::InputThreadMain() {
-  if (fd < 0) {
+  if (!IsConnected()) {
     LOG->Warn("InputHandler_Linux_PIUIO_Debug started with no file handler");
     return;
   }
 
   auto* bytes =
-      static_cast<const volatile uint8_t (*)[FULL_STATE_SIZE]>(mapped);
+      static_cast<const volatile uint8_t (*)[kFullStateSize]>(mapped_);
 
-  piuio_player_byte_t prev[NUM_OF_PADS][NUM_OF_SENSORS] = {};
+  std::array<std::array<uint8_t, kNumSensors>, kNumPads> previous_states;
+  for (auto& player_states : previous_states) {
+    player_states.fill(0xff);
+  }
 
-  while (!m_bShutdown) {
-    for (size_t i = 0; i < NUM_OF_SENSORS; ++i) {
-      for (size_t player = 0; player < NUM_OF_PADS; ++player) {
-        auto& previous = prev[player][i];
-        const auto current = bytes[i][playerIndex[player]];
+  while (!shutdown_) {
+    for (size_t sensor = 0; sensor < kNumSensors; ++sensor) {
+      for (size_t player = 0; player < kNumPads; ++player) {
+        auto& previous = previous_states[player][sensor];
+        const uint8_t current = bytes[sensor][kPlayerIndex[player]];
 
-        if (current != previous.raw) {
-          previous.raw = current;
+        if (current != previous) {
+          previous = current;
 
-          BroadcastFullSensorStateHelper(
-              player == 0 ? PLAYER_1 : PLAYER_2, i, previous);
+          QueueFullSensorState(
+              player == 0 ? PLAYER_1 : PLAYER_2, sensor, current);
         }
       }
     }
@@ -187,7 +203,9 @@ void InputHandler_Linux_PIUIO_Debug::InputThreadMain() {
 }
 
 void InputHandler_Linux_PIUIO_Debug::GetDevicesAndDescriptions(
-    std::vector<InputDeviceInfo>& vDevicesOut) {}
+    std::vector<InputDeviceInfo>&) {
+  // This is an auxiliary sensor-debug provider, not a distinct input device.
+}
 
 /*
  * (c) 2026 din
