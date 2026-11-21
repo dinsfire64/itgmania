@@ -54,6 +54,8 @@ ___*
 *.res
 .vs/
 
+references*/*
+
 # Windows General Files
 Thumbs.db
 *.exe

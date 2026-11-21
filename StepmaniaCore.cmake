@@ -68,7 +68,9 @@ endif()
 # Dependencies go here.
 include(ExternalProject)
 
-find_package(nasm)
+if(NOT WITH_DDRMINI)
+  find_package(nasm)
+endif()
 
 find_package(Threads)
 if(${Threads_FOUND})
@@ -160,6 +162,19 @@ elseif(MACOSX)
     )
   endif()
 elseif(LINUX OR BSD)
+  if(WITH_DDRMINI)
+    set(HAS_XINERAMA FALSE)
+    set(HAS_PULSE FALSE)
+    set(HAS_ALSA FALSE)
+    set(HAS_JACK FALSE)
+    find_library(DDRMINI_UDEV_LIBRARY
+                 NAMES udev
+                 PATHS "${DDRMINI_DEV_ROOT}/usr/lib/aarch64-linux-gnu"
+                 NO_DEFAULT_PATH
+                 NO_CMAKE_FIND_ROOT_PATH
+                 REQUIRED)
+    include("${SM_CMAKE_DIR}/SetupFfmpeg.cmake")
+  else()
   if(WITH_GTK3)
     find_package("GTK3" 2.0)
     if(NOT ${GTK3_FOUND})
@@ -223,6 +238,7 @@ elseif(LINUX OR BSD)
 
   find_package(udev REQUIRED)
   find_package(DBUS REQUIRED)
+  endif()
 endif(WIN32) # LINUX OR BSD, APPLE
 
 configure_file("${SM_SRC_DIR}/verstub.cpp.in"

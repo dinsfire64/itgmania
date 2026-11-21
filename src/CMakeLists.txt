@@ -119,6 +119,9 @@ target_compile_definitions(itgmania_core PUBLIC $<$<CONFIG:Release>:RELEASE>)
 target_compile_definitions(itgmania_core PUBLIC $<$<CONFIG:MinSizeRel>:MINSIZEREL>)
 target_compile_definitions(itgmania_core PUBLIC
                            $<$<CONFIG:RelWithDebInfo>:RELWITHDEBINFO>)
+if(WITH_DDRMINI)
+  target_compile_definitions(itgmania_core PUBLIC DDRMINI)
+endif()
 
 # For Apple Clang, CMAKE_<LANG>_COMPILER_ID will be set to AppleClang instead of Clang.
 if (POLICY CMP0025)
@@ -363,6 +366,13 @@ else() # Linux
       target_compile_definitions(itgmania_core PUBLIC
                                  BACKTRACE_LOOKUP_METHOD_DLADDR)
     endif()
+  else()
+    # ArchHooks_Unix always reports these descriptions, even when the optional
+    # crash-handler implementation is excluded from the build.
+    target_compile_definitions(itgmania_core PUBLIC
+                               BACKTRACE_METHOD_TEXT="disabled")
+    target_compile_definitions(itgmania_core PUBLIC
+                               BACKTRACE_LOOKUP_METHOD_TEXT="disabled")
   endif()
   if(${HAS_PTHREAD})
     target_compile_definitions(itgmania_core PUBLIC HAVE_LIBPTHREAD)
@@ -407,7 +417,6 @@ list(APPEND SMDATA_LINK_LIB "lua-5.1" "miniz" "aubio")
 
 list(APPEND SMDATA_LINK_LIB "mad"
                             "pcre"
-                            "glew"
                             "tomcrypt"
                             "tommath"
                             "stb_image"
@@ -419,6 +428,10 @@ list(APPEND SMDATA_LINK_LIB "mad"
                             "ogg"
                             "ixwebsocket"
 							"hidapi")
+
+if(NOT WITH_DDRMINI)
+  list(APPEND SMDATA_LINK_LIB "glew")
+endif()
 
 if(WIN32)
   list(APPEND SMDATA_LINK_LIB
@@ -469,9 +482,10 @@ else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
               "${SM_FFMPEG_LIB}/libavutil.a")
 
   list(REMOVE_ITEM SMDATA_LINK_LIB "zlib")
-  list(APPEND SMDATA_LINK_LIB "zlib"
-                              ${CMAKE_DL_LIBS}
-                              "${OPENGL_LIBRARY}")
+  list(APPEND SMDATA_LINK_LIB "zlib" ${CMAKE_DL_LIBS})
+  if(NOT WITH_DDRMINI)
+    list(APPEND SMDATA_LINK_LIB "${OPENGL_LIBRARY}")
+  endif()
 
   list(APPEND SMDATA_LINK_LIB "${CMAKE_THREAD_LIBS_INIT}")
 
@@ -487,18 +501,37 @@ else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
     list(APPEND SMDATA_LINK_LIB ${PULSEAUDIO_LIBRARY})
   endif()
 
-  list(APPEND SMDATA_LINK_LIB ${X11_LIBRARIES})
-
-  list(APPEND SMDATA_LINK_LIB ${DBUS_LIBRARIES})
+  if(NOT WITH_DDRMINI)
+    list(APPEND SMDATA_LINK_LIB ${X11_LIBRARIES})
+    list(APPEND SMDATA_LINK_LIB ${DBUS_LIBRARIES})
+  endif()
 
   list(APPEND SMDATA_LINK_LIB ${LIBUSB_LIBRARY})
 
-  list(APPEND SMDATA_LINK_LIB ${XRANDR_LIBRARIES} ${XINERAMA_LIBRARIES})
+  if(WITH_DDRMINI)
+    # GNU ld resolves static archives from left to right. hidapi and libusb
+    # precede these providers, and the cross-toolchain's static CMake probe can
+    # incorrectly leave CMAKE_THREAD_LIBS_INIT empty.
+    list(APPEND SMDATA_LINK_LIB
+                "${DDRMINI_UDEV_LIBRARY}"
+                "pthread")
+  endif()
+
+  if(NOT WITH_DDRMINI)
+    list(APPEND SMDATA_LINK_LIB ${XRANDR_LIBRARIES} ${XINERAMA_LIBRARIES})
+  endif()
 
   list(REMOVE_DUPLICATES SMDATA_LINK_LIB)
 endif()
 
 target_link_libraries(itgmania_core PUBLIC ${SMDATA_LINK_LIB})
+
+if(WITH_DDRMINI)
+  # Vendor DSOs are built against the console's glibc 2.35 while the compiler
+  # intentionally emits an older Bullseye ABI. Their transitive symbols are
+  # resolved by the DDR Mini runtime loader.
+  target_link_options("${SM_EXE_NAME}" PRIVATE -Wl,--allow-shlib-undefined)
+endif()
 
 list(APPEND SM_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
             "${SM_GENERATED_SRC_DIR}")
@@ -515,9 +548,10 @@ else()
     add_dependencies(itgmania_core ffmpeg)
     list(APPEND SM_INCLUDE_DIRS "${SM_FFMPEG_INCLUDE}")
 
-    list(APPEND SM_INCLUDE_DIRS "${X11_INCLUDE_DIR}")
-
-    list(APPEND SM_INCLUDE_DIRS "${DBUS_INCLUDE_DIRS}")
+    if(NOT WITH_DDRMINI)
+      list(APPEND SM_INCLUDE_DIRS "${X11_INCLUDE_DIR}")
+      list(APPEND SM_INCLUDE_DIRS "${DBUS_INCLUDE_DIRS}")
+    endif()
 
     list(APPEND SM_INCLUDE_DIRS "${LIBUSB_INCLUDE_DIR}")
   endif()

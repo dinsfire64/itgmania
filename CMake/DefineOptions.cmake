@@ -7,6 +7,11 @@ option(WITH_EXTERNAL_WARNINGS
 # This option handles if we use SSE2 processing.
 option(WITH_SSE2 "Build with SSE2 Optimizations." ON)
 
+# Bootstrap target for the embedded DDR Mini. This first compiles the complete
+# application without the desktop X11/GLX renderer; the GLES renderer is added
+# as a separate porting step.
+option(WITH_DDRMINI "Cross-compile the DDR Mini ARM64 bootstrap target." OFF)
+
 # Turn this on to set this to a specific release mode.
 option(WITH_FULL_RELEASE "Build as a proper, full release." OFF)
 

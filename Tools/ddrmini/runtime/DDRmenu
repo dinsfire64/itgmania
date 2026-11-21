@@ -1,0 +1,138 @@
+#!/bin/sh
+
+# The firmware runs this file from the USB drive root.
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+app_root="$root/itgmania"
+executable="$app_root/itgmania"
+log_dir="$app_root/Logs"
+launcher_log="$log_dir/ddrmini-launcher.log"
+audio_log="$log_dir/ddrmini-audio.log"
+monitor_pid=
+app_pid=
+power_gpio=gpio-384
+
+knob_path=/sys/devices/platform/soc@3000000/2009000.gpadc0/iio:device0/in_voltage2_raw
+jack_path=/sys/module/snd_soc_sunxi_common/parameters/jack_state
+
+set_control() {
+  if ! amixer -q set "$1" "$2"; then
+    echo "audio: failed to set $1 to $2"
+  fi
+}
+
+monitor_audio() {
+  previous_headphones=-1
+  previous_volume=-1
+
+  set_control HPOUT on
+
+  while :; do
+    if ! knob=$(cat "$knob_path" 2>/dev/null) ||
+       ! headphones=$(cat "$jack_path" 2>/dev/null); then
+      echo "audio: volume or headphone status is unavailable"
+      sleep 1
+      continue
+    fi
+
+    volume=$((knob * 64 / 1234))
+    [ "$volume" -gt 63 ] && volume=63
+    [ "$volume" -lt 0 ] && volume=0
+
+    if [ "$headphones" -ne "$previous_headphones" ]; then
+      if [ "$headphones" -eq 1 ]; then
+        set_control SPK off
+        echo "audio: switched to headphones"
+      else
+        set_control SPK on
+        echo "audio: switched to speakers"
+      fi
+      previous_headphones=$headphones
+    fi
+
+    if [ "$volume" -ne "$previous_volume" ]; then
+      set_control DAC "$volume"
+      echo "audio: volume raw=$knob DAC=$volume"
+      previous_volume=$volume
+    fi
+
+    sleep 0.1
+  done
+}
+
+cleanup() {
+  if [ -n "$app_pid" ]; then
+    kill "$app_pid" 2>/dev/null || true
+    wait "$app_pid" 2>/dev/null || true
+  fi
+  if [ -n "$monitor_pid" ]; then
+    kill "$monitor_pid" 2>/dev/null || true
+    wait "$monitor_pid" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+trap 'exit 1' INT TERM
+
+power_switch_state() {
+  grep "$power_gpio" /sys/kernel/debug/gpio 2>/dev/null |
+    awk 'NR == 1 { print $7 }'
+}
+
+mkdir -p "$log_dir"
+
+if [ ! -f "$executable" ]; then
+  echo "ITGmania executable not found: $executable" >>"$launcher_log"
+  exit 1
+fi
+
+chmod +x "$executable"
+monitor_audio >>"$audio_log" 2>&1 &
+monitor_pid=$!
+
+echo "[$(date)] Starting $executable" >>"$launcher_log"
+cd "$app_root" || exit 1
+
+if [ -d "$app_root/lib" ]; then
+  export LD_LIBRARY_PATH="$app_root/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+
+"$executable" >>"$launcher_log" 2>&1 &
+app_pid=$!
+power_requested=0
+
+while kill -0 "$app_pid" 2>/dev/null; do
+  if [ "$(power_switch_state)" = "hi" ]; then
+    power_requested=1
+    echo "[$(date)] Power switch activated; stopping ITGmania" >>"$launcher_log"
+    kill -TERM "$app_pid" 2>/dev/null || true
+
+    # Give ITGmania time to run its signal handlers and flush logs. Force the
+    # process down only if it has not exited after five seconds.
+    grace=0
+    while kill -0 "$app_pid" 2>/dev/null && [ "$grace" -lt 50 ]; do
+      sleep 0.1
+      grace=$((grace + 1))
+    done
+    if kill -0 "$app_pid" 2>/dev/null; then
+      echo "[$(date)] Grace period expired; sending SIGKILL" >>"$launcher_log"
+      kill -KILL "$app_pid" 2>/dev/null || true
+    fi
+    break
+  fi
+  sleep 0.1
+done
+
+wait "$app_pid" 2>/dev/null
+status=$?
+app_pid=
+echo "[$(date)] ITGmania exited with status $status" >>"$launcher_log"
+
+# Returning zero while gpio-384 is high hands control back to the stock initapp
+# monitor, which performs the normal system shutdown.
+if [ "$power_requested" -eq 1 ]; then
+  sync
+  exit 0
+fi
+
+# Avoid turning an unexpected application exit into a reboot.
+exit 1
+

@@ -20,8 +20,17 @@ list(APPEND FFMPEG_CONFIGURE
             "--enable-version3"
             "--enable-pthreads"
             "--enable-static"
-            "--enable-zlib"
             "--prefix=/")
+
+if(WITH_DDRMINI)
+  # FFmpeg is configured before ITGmania's bundled zlib has been built or
+  # installed, and the conservative Bullseye compiler sysroot intentionally
+  # has no target zlib development package. None of ITGmania's normal movie
+  # formats require FFmpeg's optional zlib integration.
+  list(APPEND FFMPEG_CONFIGURE "--disable-zlib")
+else()
+  list(APPEND FFMPEG_CONFIGURE "--enable-zlib")
+endif()
 
 set(FFMPEG_CC "${CMAKE_C_COMPILER}")
 set(FFMPEG_CXX "${CMAKE_CXX_COMPILER}")
@@ -59,6 +68,11 @@ if(MACOSX)
       "Unsupported macOS architecture: ${CMAKE_OSX_ARCHITECTURES}, set CMAKE_OSX_ARCHITECTURES to either arm64 or x86_64"
     )
   endif()
+elseif(CMAKE_CROSSCOMPILING AND LINUX)
+  list(APPEND FFMPEG_CONFIGURE
+       "--enable-cross-compile"
+       "--target-os=linux"
+       "--arch=aarch64")
 endif()
 
 if(NOT WITH_EXTERNAL_WARNINGS)

@@ -40,7 +40,7 @@
 #include "arch/Dialog/Dialog.h"
 #include "arch/LoadingWindow/LoadingWindow.h"
 
-#if !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D)
+#if !defined(SUPPORT_OPENGL) && !defined(SUPPORT_D3D) && !defined(DDRMINI)
 #define SUPPORT_OPENGL
 #endif
 
@@ -396,6 +396,9 @@ struct VideoCardDefaults {
     smooth_lines_ = smooth_lines;
   }
 } const g_VideoCardDefaults[] = {
+#if defined(DDRMINI)
+    VideoCardDefaults("Null", "null", 1280, 720, 32, 32, 32, 2048, true),
+#endif
     // These lines correspond to the struct defined above.
     VideoCardDefaults(
         "OpenGL",   // Video card name (generic Mac/Linux)
@@ -420,7 +423,9 @@ struct VideoCardDefaults {
 };
 
 static std::string GetVideoDriverName() {
-#if defined(_WIN32)
+#if defined(DDRMINI)
+  return "Null";
+#elif defined(_WIN32)
   return GetPrimaryVideoDriverName();
 #else
   return "OpenGL";

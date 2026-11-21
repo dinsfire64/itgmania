@@ -52,7 +52,9 @@ inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 
 #elif defined(UNIX)
 #include "ArchHooks/ArchHooks_Unix.h"
+#if !defined(DDRMINI)
 #include "LowLevelWindow/LowLevelWindow_X11.h"
+#endif
 
 #if defined(LINUX)
 #include "MemoryCard/MemoryCardDriverThreaded_Linux.h"
@@ -64,8 +66,13 @@ inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 
 #if defined(LINUX)
 inline const std::vector<std::string>& GetDefaultInputDriverList() {
+#if defined(DDRMINI)
+  static const std::vector<std::string> kInputDriverList = {
+      "LinuxEvent", "LinuxJoystick"};
+#else
   static const std::vector<std::string> kInputDriverList = {
       "X11", "LinuxEvent", "LinuxJoystick"};
+#endif
   return kInputDriverList;
 }
 #else
@@ -85,8 +92,12 @@ inline const std::vector<std::string>& GetDefaultMovieDriverList() {
 // as PulseAudio will successfully Init() but not actually work if the
 // PulseAudio daemon has been suspended by/for jackd.
 inline const std::vector<std::string>& GetDefaultSoundDriverList() {
+#if defined(DDRMINI)
+  static const std::vector<std::string> kSoundDriverList = {"Null"};
+#else
   static const std::vector<std::string> kSoundDriverList = {
       "Pulse", "ALSA-sw", "JACK", "Null"};
+#endif
   return kSoundDriverList;
 }
 #else

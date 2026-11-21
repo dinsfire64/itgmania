@@ -100,8 +100,10 @@ else()
                 "archutils/Unix/GetSysInfo.h"
                 "archutils/Unix/SignalHandler.h"
                 "archutils/Unix/SpecialDirs.h")
-    list(APPEND SMDATA_OS_SRC "archutils/Unix/X11Helper.cpp")
-    list(APPEND SMDATA_OS_HPP "archutils/Unix/X11Helper.h")
+    if(NOT WITH_DDRMINI)
+      list(APPEND SMDATA_OS_SRC "archutils/Unix/X11Helper.cpp")
+      list(APPEND SMDATA_OS_HPP "archutils/Unix/X11Helper.h")
+    endif()
     if(HAS_PTHREAD)
       list(APPEND SMDATA_OS_SRC "archutils/Common/PthreadHelpers.cpp")
       list(APPEND SMDATA_OS_HPP "archutils/Common/PthreadHelpers.h")

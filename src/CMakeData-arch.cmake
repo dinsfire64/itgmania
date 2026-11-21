@@ -120,10 +120,14 @@ source_group("Arch Specific\\\\Memory Card"
              ${SMDATA_ARCH_MEMORY_SRC}
              ${SMDATA_ARCH_MEMORY_HPP})
 
-list(APPEND SMDATA_ARCH_LOWLEVEL_SRC "arch/LowLevelWindow/LowLevelWindow.cpp")
-list(APPEND SMDATA_ARCH_LOWLEVEL_HPP "arch/LowLevelWindow/LowLevelWindow.h")
+if(NOT WITH_DDRMINI)
+  list(APPEND SMDATA_ARCH_LOWLEVEL_SRC "arch/LowLevelWindow/LowLevelWindow.cpp")
+  list(APPEND SMDATA_ARCH_LOWLEVEL_HPP "arch/LowLevelWindow/LowLevelWindow.h")
+endif()
 
-if(WIN32)
+if(WITH_DDRMINI)
+  # The bootstrap uses RageDisplay_Null and therefore has no low-level window.
+elseif(WIN32)
   list(APPEND SMDATA_ARCH_LOWLEVEL_SRC
               "arch/LowLevelWindow/LowLevelWindow_Win32.cpp")
   list(APPEND SMDATA_ARCH_LOWLEVEL_HPP
@@ -138,7 +142,7 @@ else(UNIX)
               "arch/LowLevelWindow/LowLevelWindow_X11.cpp")
   list(APPEND SMDATA_ARCH_LOWLEVEL_HPP
               "arch/LowLevelWindow/LowLevelWindow_X11.h")
-endif(WIN32)
+endif()
 
 source_group("Arch Specific\\\\Low Level Window"
              FILES
@@ -211,7 +215,11 @@ if(NOT APPLE)
                 "arch/Lights/LightsDriver_Win32Minimaid.h")
   else() # Unix/Linux TODO: Linux HAVE_PARALLEL_PORT
     if(LINUX)
-      list(APPEND SMDATA_LINK_LIB "udev")
+      if(WITH_DDRMINI)
+        # Added after the static HID/libusb archives in src/CMakeLists.txt.
+      else()
+        list(APPEND SMDATA_LINK_LIB "udev")
+      endif()
       list(APPEND SMDATA_ARCH_LIGHTS_SRC
                   "arch/Lights/LightsDriver_Linux_Leds.cpp"
                   "arch/Lights/LightsDriver_Linux_PIUIO.cpp"
@@ -284,7 +292,18 @@ elseif(APPLE)
               "arch/InputHandler/InputHandler_MacOSX_HID.h"
               "arch/InputHandler/InputHandler_NSEvent.hpp")
 else() # Unix/Linux
-  if(LINUX)
+  if(LINUX AND WITH_DDRMINI)
+    # LinuxInputManager directly references both implementations even though
+    # the bootstrap's default input-driver list is empty.
+    list(APPEND SMDATA_ARCH_INPUT_SRC
+                "arch/InputHandler/LinuxInputManager.cpp"
+                "arch/InputHandler/InputHandler_Linux_Joystick.cpp"
+                "arch/InputHandler/InputHandler_Linux_Event.cpp")
+    list(APPEND SMDATA_ARCH_INPUT_HPP
+                "arch/InputHandler/LinuxInputManager.h"
+                "arch/InputHandler/InputHandler_Linux_Joystick.h"
+                "arch/InputHandler/InputHandler_Linux_Event.h")
+  elseif(LINUX)
     list(APPEND SMDATA_ARCH_INPUT_SRC
                 "arch/InputHandler/LinuxInputManager.cpp"
                 "arch/InputHandler/InputHandler_Linux_Joystick.cpp"
@@ -298,8 +317,10 @@ else() # Unix/Linux
                 "arch/InputHandler/InputHandler_Linux_PIUIO.h"
                 "arch/InputHandler/InputHandler_SextetStream.h")
   endif()
-  list(APPEND SMDATA_ARCH_INPUT_SRC "arch/InputHandler/InputHandler_X11.cpp")
-  list(APPEND SMDATA_ARCH_INPUT_HPP "arch/InputHandler/InputHandler_X11.h")
+  if(NOT WITH_DDRMINI)
+    list(APPEND SMDATA_ARCH_INPUT_SRC "arch/InputHandler/InputHandler_X11.cpp")
+    list(APPEND SMDATA_ARCH_INPUT_HPP "arch/InputHandler/InputHandler_X11.h")
+  endif()
 endif()
 
 source_group("Arch Specific\\\\Input Handler"
