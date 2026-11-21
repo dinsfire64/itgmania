@@ -15,6 +15,7 @@
 #include "RageMath.h"
 #include "RageSurface.h"
 #include "RageSurfaceUtils.h"
+#include "RageUtil.h"
 #include "global.h"
 
 namespace {
@@ -129,8 +130,24 @@ std::string RageDisplay_DDRMini::TryVideoMode(const VideoModeParams& p, bool& re
 }
 void RageDisplay_DDRMini::GetDisplaySpecs(DisplaySpecs& out) const { out.clear(); out.insert(DisplaySpec("DDRMini","DDR Mini",{1280,720,60})); }
 const RageDisplay::RagePixelFormatDesc* RageDisplay_DDRMini::GetPixelFormatDesc(RagePixelFormat p) const { return p>=0&&p<NUM_RagePixelFormat?&formats[p]:nullptr; }
-bool RageDisplay_DDRMini::BeginFrame(){ glClear(GL_COLOR_BUFFER_BIT); return RageDisplay::BeginFrame(); }
-void RageDisplay_DDRMini::EndFrame(){ FrameLimitBeforeVsync(); SDL_GL_SwapWindow(window_); FrameLimitAfterVsync(); ProcessStatsOnFlip(); }
+bool RageDisplay_DDRMini::BeginFrame() {
+  // Match the legacy renderer: depth writes must be enabled while clearing,
+  // regardless of the state left by the final actor in the previous frame.
+  glViewport(0, 0, params_.window_width_, params_.window_height_);
+  glClearColor(0, 0, 0, 0);
+  glDepthMask(GL_TRUE);
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+  return RageDisplay::BeginFrame();
+}
+void RageDisplay_DDRMini::EndFrame() {
+  FrameLimitBeforeVsync();
+  SDL_GL_SwapWindow(window_);
+  FrameLimitAfterVsync();
+  // Keep the GPU close to engine time; queued frames make rhythm-game input
+  // and audio synchronization visibly late.
+  glFinish();
+  RageDisplay::EndFrame();
+}
 void RageDisplay_DDRMini::SendMatrices(){ RageMatrix p,m; RageMatrixMultiply(&p,GetCentering(),GetProjectionTop()); RageMatrixMultiply(&m,GetViewTop(),GetWorldTop()); glMatrixMode(GL_PROJECTION);glLoadMatrixf((float*)&p);glMatrixMode(GL_MODELVIEW);glLoadMatrixf((float*)&m);glMatrixMode(GL_TEXTURE);glLoadMatrixf((float*)GetTextureTop());glMatrixMode(GL_MODELVIEW); }
 void RageDisplay_DDRMini::Draw(const RageSpriteVertex v[],int n,unsigned mode){ SendMatrices();setup_vertices(v,n);glDrawArrays(mode,0,n); }
 void RageDisplay_DDRMini::DrawQuadsInternal(const RageSpriteVertex v[], int n) {
@@ -213,10 +230,26 @@ uintptr_t RageDisplay_DDRMini::CreateTexture(RagePixelFormat p, RageSurface* s, 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexImage2D(GL_TEXTURE_2D, 0, format, upload->w_, upload->h_, 0,
-               format, type, tight.data());
+  // ITGmania computes texture coordinates against power-of-two dimensions.
+  // GLES 1 implementations also need not support arbitrary NPOT textures.
+  // Allocate the padded resource first, then upload only the image rectangle.
+  const int texture_width = power_of_two(upload->w_);
+  const int texture_height = power_of_two(upload->h_);
+  while (glGetError() != GL_NO_ERROR) {}
+  glTexImage2D(GL_TEXTURE_2D, 0, format, texture_width, texture_height, 0,
+               format, type, nullptr);
+  GLenum texture_error = glGetError();
+  if (texture_error == GL_NO_ERROR && upload->pixels_) {
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, upload->w_, upload->h_, format,
+                    type, tight.data());
+    texture_error = glGetError();
+  }
   delete converted;
-  if (glGetError() != GL_NO_ERROR) {
+  if (texture_error != GL_NO_ERROR) {
+    LOG->Warn(
+        "DDR Mini GLES texture upload failed: error=0x%x image=%dx%d texture=%dx%d format=%d",
+        texture_error, s->w_, s->h_, texture_width, texture_height,
+        static_cast<int>(p));
     glDeleteTextures(1, &id);
     return 0;
   }
@@ -256,7 +289,62 @@ void RageDisplay_DDRMini::DeleteTexture(uintptr_t handle) {
 }
 void RageDisplay_DDRMini::ClearAllTextures(){glBindTexture(GL_TEXTURE_2D,0);} void RageDisplay_DDRMini::SetTexture(TextureUnit u,uintptr_t t){if(u!=TextureUnit_1)return;if(t){glEnable(GL_TEXTURE_2D);glBindTexture(GL_TEXTURE_2D,t);}else glDisable(GL_TEXTURE_2D);}
 void RageDisplay_DDRMini::SetTextureMode(TextureUnit,TextureMode m){glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,m==TextureMode_Add?GL_ADD:GL_MODULATE);} void RageDisplay_DDRMini::SetTextureWrapping(TextureUnit,bool b){glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,b?GL_REPEAT:GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,b?GL_REPEAT:GL_CLAMP_TO_EDGE);} int RageDisplay_DDRMini::GetMaxTextureSize()const{GLint n;glGetIntegerv(GL_MAX_TEXTURE_SIZE,&n);return n;} void RageDisplay_DDRMini::SetTextureFiltering(TextureUnit,bool b){glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,b?GL_LINEAR:GL_NEAREST);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,b?GL_LINEAR:GL_NEAREST);}
-void RageDisplay_DDRMini::SetBlendMode(BlendMode m){glEnable(GL_BLEND);GLenum s=GL_SRC_ALPHA,d=GL_ONE_MINUS_SRC_ALPHA;if(m==BLEND_ADD)d=GL_ONE;else if(m==BLEND_MODULATE){s=GL_ZERO;d=GL_SRC_COLOR;}else if(m==BLEND_COPY_SRC){s=GL_ONE;d=GL_ZERO;}else if(m==BLEND_NO_EFFECT){s=GL_ZERO;d=GL_ONE;}glBlendFunc(s,d);}
-bool RageDisplay_DDRMini::IsZWriteEnabled()const{GLboolean b;glGetBooleanv(GL_DEPTH_WRITEMASK,&b);return b;}void RageDisplay_DDRMini::SetZWrite(bool b){glDepthMask(b);}void RageDisplay_DDRMini::SetZBias(float f){if(f){glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(0,f);}else glDisable(GL_POLYGON_OFFSET_FILL);}void RageDisplay_DDRMini::SetZTestMode(ZTestMode m){if(m==ZTEST_OFF)glDisable(GL_DEPTH_TEST);else{glEnable(GL_DEPTH_TEST);glDepthFunc(m==ZTEST_WRITE_ON_FAIL?GL_GREATER:GL_LEQUAL);}}void RageDisplay_DDRMini::ClearZBuffer(){glClear(GL_DEPTH_BUFFER_BIT);}void RageDisplay_DDRMini::SetCullMode(CullMode m){if(m==CULL_NONE)glDisable(GL_CULL_FACE);else{glEnable(GL_CULL_FACE);glCullFace(m==CULL_BACK?GL_BACK:GL_FRONT);}}void RageDisplay_DDRMini::SetAlphaTest(bool b){if(b){glEnable(GL_ALPHA_TEST);glAlphaFunc(GL_GREATER,0.01f);}else glDisable(GL_ALPHA_TEST);}
+void RageDisplay_DDRMini::SetBlendMode(BlendMode mode) {
+  glEnable(GL_BLEND);
+  GLenum source = GL_SRC_ALPHA;
+  GLenum dest = GL_ONE_MINUS_SRC_ALPHA;
+  switch (mode) {
+    case BLEND_NORMAL: break;
+    case BLEND_ADD: dest = GL_ONE; break;
+    case BLEND_SUBTRACT:
+      // GLES 1.1 has no core blend equation. Additive blending is a safer
+      // degradation than drawing the source as an opaque black mask.
+      dest = GL_ONE;
+      break;
+    case BLEND_MODULATE: source = GL_ZERO; dest = GL_SRC_COLOR; break;
+    case BLEND_COPY_SRC: source = GL_ONE; dest = GL_ZERO; break;
+    case BLEND_ALPHA_MASK:
+    case BLEND_ALPHA_KNOCK_OUT:
+      // Separate RGB/alpha blending is extension-only. Preserve destination
+      // color; losing the mask is preferable to blacking out the background.
+      source = GL_ZERO; dest = GL_ONE; break;
+    case BLEND_ALPHA_MULTIPLY: dest = GL_ZERO; break;
+    case BLEND_WEIGHTED_MULTIPLY:
+      source = GL_DST_COLOR; dest = GL_SRC_COLOR; break;
+    case BLEND_INVERT_DEST: source = GL_ONE; dest = GL_ONE; break;
+    case BLEND_NO_EFFECT: source = GL_ZERO; dest = GL_ONE; break;
+    default: break;
+  }
+  glBlendFunc(source, dest);
+}
+bool RageDisplay_DDRMini::IsZWriteEnabled() const {
+  GLboolean enabled = GL_FALSE;
+  glGetBooleanv(GL_DEPTH_WRITEMASK, &enabled);
+  return enabled == GL_TRUE;
+}
+void RageDisplay_DDRMini::SetZWrite(bool enabled) { glDepthMask(enabled); }
+void RageDisplay_DDRMini::SetZBias(float bias) {
+  const float near_value = 0.05f * (1.0f - bias);
+  const float far_value = 1.0f - 0.05f * bias;
+  glDepthRangef(near_value, far_value);
+}
+void RageDisplay_DDRMini::SetZTestMode(ZTestMode mode) {
+  // GL_ALWAYS is not equivalent to disabling depth testing: actors may enable
+  // depth writes independently and expect those writes to be retained.
+  glEnable(GL_DEPTH_TEST);
+  switch (mode) {
+    case ZTEST_OFF: glDepthFunc(GL_ALWAYS); break;
+    case ZTEST_WRITE_ON_PASS: glDepthFunc(GL_LEQUAL); break;
+    case ZTEST_WRITE_ON_FAIL: glDepthFunc(GL_GREATER); break;
+    default: glDepthFunc(GL_ALWAYS); break;
+  }
+}
+void RageDisplay_DDRMini::ClearZBuffer() {
+  const bool was_writable = IsZWriteEnabled();
+  glDepthMask(GL_TRUE);
+  glClear(GL_DEPTH_BUFFER_BIT);
+  glDepthMask(was_writable);
+}
+void RageDisplay_DDRMini::SetCullMode(CullMode m){if(m==CULL_NONE)glDisable(GL_CULL_FACE);else{glEnable(GL_CULL_FACE);glCullFace(m==CULL_BACK?GL_BACK:GL_FRONT);}}void RageDisplay_DDRMini::SetAlphaTest(bool b){if(b){glEnable(GL_ALPHA_TEST);glAlphaFunc(GL_GREATER,0.01f);}else glDisable(GL_ALPHA_TEST);}
 void RageDisplay_DDRMini::SetMaterial(const RageColor&e,const RageColor&a,const RageColor&d,const RageColor&s,float sh){glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,&e.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,&a.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,&d.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,&s.r_);glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,sh);}void RageDisplay_DDRMini::SetLighting(bool b){if(b)glEnable(GL_LIGHTING);else glDisable(GL_LIGHTING);}void RageDisplay_DDRMini::SetLightOff(int i){glDisable(GL_LIGHT0+i);}void RageDisplay_DDRMini::SetLightDirectional(int i,const RageColor&a,const RageColor&d,const RageColor&s,const RageVector3&v){GLfloat p[]={-v.x_,-v.y_,-v.z_,0};glEnable(GL_LIGHT0+i);glLightfv(GL_LIGHT0+i,GL_AMBIENT,&a.r_);glLightfv(GL_LIGHT0+i,GL_DIFFUSE,&d.r_);glLightfv(GL_LIGHT0+i,GL_SPECULAR,&s.r_);glLightfv(GL_LIGHT0+i,GL_POSITION,p);}void RageDisplay_DDRMini::SetSphereEnvironmentMapping(TextureUnit,bool){/* GLES 1.1 has no core sphere-map texgen. */}
 RageSurface* RageDisplay_DDRMini::CreateScreenshot(){RageSurface* s=CreateSurface(params_.width_,params_.height_,24,0xFF0000,0x00FF00,0x0000FF,0);glReadPixels(0,0,s->w_,s->h_,GL_RGB,GL_UNSIGNED_BYTE,s->pixels_);return s;}
