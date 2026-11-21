@@ -117,6 +117,11 @@ if(NOT WITH_DDRMINI)
               "RageDisplay_OGL_Helpers.h")
 endif()
 
+if(WITH_DDRMINI)
+  list(APPEND SMDATA_RAGE_GRAPHICS_SRC "RageDisplay_DDRMini.cpp")
+  list(APPEND SMDATA_RAGE_GRAPHICS_HPP "RageDisplay_DDRMini.h")
+endif()
+
 if(WIN32)
   list(APPEND SMDATA_RAGE_GRAPHICS_SRC "RageDisplay_D3D.cpp")
   list(APPEND SMDATA_RAGE_GRAPHICS_HPP "RageDisplay_D3D.h")

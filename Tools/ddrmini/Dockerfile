@@ -30,12 +30,20 @@ RUN dpkg --add-architecture arm64 \
       pkg-config \
       p7zip-full \
       python3-pip \
- && mkdir -p /tmp/sdl2-package /opt/sdl2-arm64 /opt/ddrmini-dev \
+ && mkdir -p /tmp/sdl2-package /opt/sdl2-arm64 /opt/gles-arm64 /opt/ddrmini-dev \
  && cd /tmp/sdl2-package \
  && apt-get download libsdl2-dev:arm64 \
+ && apt-get download libgles-dev:arm64 \
+ && apt-get download libglvnd-dev:arm64 \
+ && apt-get download libglvnd-core-dev:arm64 \
+ && apt-get download libgl-dev:arm64 \
  && apt-get download libudev-dev:arm64 \
  && apt-get download libudev1:arm64 \
  && dpkg-deb --extract ./libsdl2-dev_*_arm64.deb /opt/sdl2-arm64 \
+ && dpkg-deb --extract ./libgles-dev_*_arm64.deb /opt/gles-arm64 \
+ && dpkg-deb --extract ./libglvnd-dev_*_arm64.deb /opt/gles-arm64 \
+ && dpkg-deb --extract ./libglvnd-core-dev_*_arm64.deb /opt/gles-arm64 \
+ && dpkg-deb --extract ./libgl-dev_*_arm64.deb /opt/gles-arm64 \
  && dpkg-deb --extract ./libudev-dev_*_arm64.deb /opt/ddrmini-dev \
  && dpkg-deb --extract ./libudev1_*_arm64.deb /opt/ddrmini-dev \
  && cd / \

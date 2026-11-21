@@ -152,10 +152,22 @@ DDRMINI_BUILD_JOBS=1 Tools/ddrmini/docker-build-itgmania.sh
 DDRMINI_BUILD_JOBS=4 Tools/ddrmini/docker-build-itgmania.sh
 ```
 
-This stage deliberately builds ITGmania with its null display and null sound
-drivers. Its purpose is to resolve all general AArch64 and bundled-dependency
-build failures before introducing the SDL/EGL/GLES renderer and ALSA driver.
-The output is `itgmania` in the repository root; it is not yet the playable
+The DDR Mini build uses the firmware's SDL2, EGL, and OpenGL ES 1 libraries.
+After changes to the Dockerfile (including the GLES renderer addition), rebuild
+the image and the application with:
+
+```sh
+docker build --no-cache -t itgmania-ddrmini-cross:bullseye Tools/ddrmini
+rm -rf Build/ddrmini-itgmania
+DDRMINI_BUILD_JOBS=1 Tools/ddrmini/docker-build-itgmania.sh
+```
+
+The renderer tries `ddrmini` first and retains `null` as a fallback.  A working
+GLES initialization is recorded in `Logs/log.txt` as `Current renderer: DDR
+Mini GLES`, followed by the SDL video driver and Mali GLES vendor/version.
+
+Sound remains on the null driver for this video bring-up stage. The output is
+`itgmania` in the repository root and can replace `itgmania/itgmania` in the
 USB payload.
 
 ### USB directory layout

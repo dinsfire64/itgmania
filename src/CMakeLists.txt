@@ -121,6 +121,10 @@ target_compile_definitions(itgmania_core PUBLIC
                            $<$<CONFIG:RelWithDebInfo>:RELWITHDEBINFO>)
 if(WITH_DDRMINI)
   target_compile_definitions(itgmania_core PUBLIC DDRMINI)
+  target_include_directories(itgmania_core PUBLIC
+    "/opt/sdl2-arm64/usr/include/SDL2"
+    "/opt/sdl2-arm64/usr/include/aarch64-linux-gnu"
+    "/opt/gles-arm64/usr/include")
 endif()
 
 # For Apple Clang, CMAKE_<LANG>_COMPILER_ID will be set to AppleClang instead of Clang.
@@ -514,6 +518,9 @@ else() # Unix / Linux TODO: Remember to find and locate the zip archive files.
     # incorrectly leave CMAKE_THREAD_LIBS_INIT empty.
     list(APPEND SMDATA_LINK_LIB
                 "${DDRMINI_UDEV_LIBRARY}"
+                "${DDRMINI_SDL_LIBRARY}"
+                "${DDRMINI_GLES1_LIBRARY}"
+                "${DDRMINI_EGL_LIBRARY}"
                 "pthread")
   endif()
 

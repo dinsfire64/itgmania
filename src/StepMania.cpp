@@ -368,6 +368,9 @@ std::string StepMania::GetSelectMusicScreen() {
 #endif
 
 #include "RageDisplay_Null.h"
+#if defined(DDRMINI)
+#include "RageDisplay_DDRMini.h"
+#endif
 
 struct VideoCardDefaults {
   std::string driver_regex_;
@@ -397,7 +400,7 @@ struct VideoCardDefaults {
   }
 } const g_VideoCardDefaults[] = {
 #if defined(DDRMINI)
-    VideoCardDefaults("Null", "null", 1280, 720, 32, 32, 32, 2048, true),
+    VideoCardDefaults("DDR Mini GLES", "ddrmini,null", 1280, 720, 32, 32, 32, 2048, true),
 #endif
     // These lines correspond to the struct defined above.
     VideoCardDefaults(
@@ -424,7 +427,7 @@ struct VideoCardDefaults {
 
 static std::string GetVideoDriverName() {
 #if defined(DDRMINI)
-  return "Null";
+  return "DDR Mini GLES";
 #elif defined(_WIN32)
   return GetPrimaryVideoDriverName();
 #else
@@ -569,6 +572,10 @@ RageDisplay* CreateDisplay() {
 // TODO: ANGLE/RageDisplay_Modern
 #if defined(SUPPORT_D3D)
       ret = new RageDisplay_D3D;
+#endif
+    } else if (CompareNoCase(renderer, "ddrmini") == 0) {
+#if defined(DDRMINI)
+      ret = new RageDisplay_DDRMini;
 #endif
     } else if (CompareNoCase(renderer, "null") == 0) {
       return new RageDisplay_Null;

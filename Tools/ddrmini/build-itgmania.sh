@@ -21,9 +21,24 @@ fi
   echo "Bullseye ARM64 libudev SDK library is missing; rebuild the Docker image." >&2
   exit 1
 }
+[ -f /opt/sdl2-arm64/usr/include/SDL2/SDL.h ] || {
+  echo "ARM64 SDL2 headers are missing; rebuild the Docker image." >&2
+  exit 1
+}
+[ -f /opt/gles-arm64/usr/include/GLES/gl.h ] || {
+  echo "ARM64 OpenGL ES headers are missing; rebuild the Docker image." >&2
+  exit 1
+}
+[ -f /opt/gles-arm64/usr/include/KHR/khrplatform.h ] || {
+  echo "Khronos platform header missing; rebuild Docker image." >&2
+  exit 1
+}
 
 cmake -S "$repo" -B "$build" \
   -UDDRMINI_UDEV_LIBRARY \
+  -UDDRMINI_SDL_LIBRARY \
+  -UDDRMINI_GLES1_LIBRARY \
+  -UDDRMINI_EGL_LIBRARY \
   -DCMAKE_TOOLCHAIN_FILE="$repo/CMake/toolchains/ddrmini-aarch64.cmake" \
   -DDDRMINI_SYSROOT="$sysroot" \
   -DCMAKE_BUILD_TYPE=Release \
