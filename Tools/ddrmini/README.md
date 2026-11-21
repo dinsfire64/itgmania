@@ -166,9 +166,12 @@ The renderer tries `ddrmini` first and retains `null` as a fallback.  A working
 GLES initialization is recorded in `Logs/log.txt` as `Current renderer: DDR
 Mini GLES`, followed by the SDL video driver and Mali GLES vendor/version.
 
-Sound remains on the null driver for this video bring-up stage. The output is
-`itgmania` in the repository root and can replace `itgmania/itgmania` in the
-USB payload.
+The DDR Mini target uses the firmware SDL2 audio backend at 48 kHz stereo and
+keeps the null driver as a fallback.  The runtime launcher must continue to run
+its audio monitor so the codec, speaker/headphone route, and DAC volume are
+configured.  Successful initialization is logged as `Sound driver:
+DDRMiniSDL`. The output is `itgmania` in the repository root and can replace
+`itgmania/itgmania` in the USB payload.
 
 ### USB directory layout
 

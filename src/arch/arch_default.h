@@ -93,7 +93,8 @@ inline const std::vector<std::string>& GetDefaultMovieDriverList() {
 // PulseAudio daemon has been suspended by/for jackd.
 inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 #if defined(DDRMINI)
-  static const std::vector<std::string> kSoundDriverList = {"Null"};
+  static const std::vector<std::string> kSoundDriverList = {
+      "DDRMiniSDL", "Null"};
 #else
   static const std::vector<std::string> kSoundDriverList = {
       "Pulse", "ALSA-sw", "JACK", "Null"};

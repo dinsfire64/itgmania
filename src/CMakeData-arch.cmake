@@ -32,6 +32,13 @@ list(APPEND SMDATA_ARCH_SOUND_SRC
 list(APPEND SMDATA_ARCH_SOUND_HPP "arch/Sound/RageSoundDriver.h"
             "arch/Sound/RageSoundDriver_Null.h")
 
+if(WITH_DDRMINI)
+  list(APPEND SMDATA_ARCH_SOUND_SRC
+              "arch/Sound/RageSoundDriver_DDRMini_SDL.cpp")
+  list(APPEND SMDATA_ARCH_SOUND_HPP
+              "arch/Sound/RageSoundDriver_DDRMini_SDL.h")
+endif()
+
 if(WIN32)
   list(APPEND SMDATA_ARCH_SOUND_SRC
               "arch/Sound/DSoundHelpers.cpp"
