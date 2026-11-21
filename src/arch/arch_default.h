@@ -68,7 +68,7 @@ inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 inline const std::vector<std::string>& GetDefaultInputDriverList() {
 #if defined(DDRMINI)
   static const std::vector<std::string> kInputDriverList = {
-      "LinuxEvent", "LinuxJoystick"};
+      "DDRMiniSDL", "LinuxEvent", "LinuxJoystick"};
 #else
   static const std::vector<std::string> kInputDriverList = {
       "X11", "LinuxEvent", "LinuxJoystick"};

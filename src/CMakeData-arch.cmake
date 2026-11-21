@@ -300,10 +300,12 @@ else() # Unix/Linux
     # LinuxInputManager directly references both implementations even though
     # the bootstrap's default input-driver list is empty.
     list(APPEND SMDATA_ARCH_INPUT_SRC
+                "arch/InputHandler/InputHandler_DDRMini_SDL.cpp"
                 "arch/InputHandler/LinuxInputManager.cpp"
                 "arch/InputHandler/InputHandler_Linux_Joystick.cpp"
                 "arch/InputHandler/InputHandler_Linux_Event.cpp")
     list(APPEND SMDATA_ARCH_INPUT_HPP
+                "arch/InputHandler/InputHandler_DDRMini_SDL.h"
                 "arch/InputHandler/LinuxInputManager.h"
                 "arch/InputHandler/InputHandler_Linux_Joystick.h"
                 "arch/InputHandler/InputHandler_Linux_Event.h")

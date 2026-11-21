@@ -112,7 +112,13 @@ std::string RageDisplay_DDRMini::TryVideoMode(const VideoModeParams& p, bool& re
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,16); SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
   window_=SDL_CreateWindow(p.window_title_.c_str(),SDL_WINDOWPOS_UNDEFINED,SDL_WINDOWPOS_UNDEFINED,
                            p.width_,p.height_,SDL_WINDOW_OPENGL|SDL_WINDOW_FULLSCREEN_DESKTOP);
-  if(!window_) return SDL_GetError(); context_=SDL_GL_CreateContext(window_); if(!context_) return SDL_GetError();
+  if (!window_) {
+    return SDL_GetError();
+  }
+  context_ = SDL_GL_CreateContext(window_);
+  if (!context_) {
+    return SDL_GetError();
+  }
   SDL_GL_SetSwapInterval(p.vsync_?1:0); int w,h; SDL_GL_GetDrawableSize(window_,&w,&h);
   params_=ActualVideoModeParams(p,w,h,false); params_.width_=w; params_.height_=h; reload=true;
   glViewport(0,0,w,h); glEnableClientState(GL_VERTEX_ARRAY); glEnableClientState(GL_COLOR_ARRAY);
