@@ -217,6 +217,10 @@ if(NOT APPLE)
     if(LINUX)
       if(WITH_DDRMINI)
         # Added after the static HID/libusb archives in src/CMakeLists.txt.
+        list(APPEND SMDATA_ARCH_LIGHTS_SRC
+                  "arch/Lights/LightsDriver_DDRMini.cpp")
+        list(APPEND SMDATA_ARCH_LIGHTS_HPP
+                  "arch/Lights/LightsDriver_DDRMini.h")        
       else()
         list(APPEND SMDATA_LINK_LIB "udev")
       endif()
