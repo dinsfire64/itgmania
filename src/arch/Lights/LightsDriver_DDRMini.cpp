@@ -297,9 +297,12 @@ void LightsDriver_DDRMini::Set(const LightsState* ls) {
       p2_start,
       p2_start,
       p2_start,
+      // Physical marquee wiring:
+      // yellow1=upper-left, yellow2=lower-left,
+      // red1=lower-right, red2=upper-right.
+      Brightness(ls->cabinet_lights_[LIGHT_MARQUEE_UP_LEFT]),
       Brightness(ls->cabinet_lights_[LIGHT_MARQUEE_LR_LEFT]),
       Brightness(ls->cabinet_lights_[LIGHT_MARQUEE_LR_RIGHT]),
-      Brightness(ls->cabinet_lights_[LIGHT_MARQUEE_UP_LEFT]),
       Brightness(ls->cabinet_lights_[LIGHT_MARQUEE_UP_RIGHT]),
       speaker,
       speaker,
