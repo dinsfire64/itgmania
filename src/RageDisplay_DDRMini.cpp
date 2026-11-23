@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include <GLES/gl.h>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <map>
 #include <cstdint>
@@ -42,6 +43,67 @@ bool gl_format(RagePixelFormat pf, GLenum& format, GLenum& type, int& bytes) {
 // Keep the upload format for each GL texture. The source RageSurface can have
 // a completely different layout, particularly for dynamic texture updates.
 std::map<GLuint, RagePixelFormat> texture_formats;
+bool sphere_environment_mapping = false;
+
+void generate_sphere_map_texcoords(const std::vector<RageModelVertex>& vertices,
+                                   std::vector<RageVector2>& texcoords) {
+  GLfloat model_view[16];
+  glGetFloatv(GL_MODELVIEW_MATRIX, model_view);
+  texcoords.resize(vertices.size());
+
+  for (size_t i = 0; i < vertices.size(); ++i) {
+    const RageVector3& position = vertices[i].p_;
+    const RageVector3& normal = vertices[i].n_;
+
+    // GL_SPHERE_MAP operates in eye space. Models using this path are
+    // uniformly scaled, so normalizing after applying the model-view 3x3 is
+    // equivalent to using its inverse-transpose for their normals.
+    RageVector3 p(
+        model_view[0] * position.x_ + model_view[4] * position.y_ +
+            model_view[8] * position.z_ + model_view[12],
+        model_view[1] * position.x_ + model_view[5] * position.y_ +
+            model_view[9] * position.z_ + model_view[13],
+        model_view[2] * position.x_ + model_view[6] * position.y_ +
+            model_view[10] * position.z_ + model_view[14]);
+    RageVector3 n(
+        model_view[0] * normal.x_ + model_view[4] * normal.y_ +
+            model_view[8] * normal.z_,
+        model_view[1] * normal.x_ + model_view[5] * normal.y_ +
+            model_view[9] * normal.z_,
+        model_view[2] * normal.x_ + model_view[6] * normal.y_ +
+            model_view[10] * normal.z_);
+
+    const float p_length =
+        std::sqrt(p.x_ * p.x_ + p.y_ * p.y_ + p.z_ * p.z_);
+    const float n_length =
+        std::sqrt(n.x_ * n.x_ + n.y_ * n.y_ + n.z_ * n.z_);
+    if (p_length <= 0.000001f || n_length <= 0.000001f) {
+      texcoords[i] = RageVector2(0.5f, 0.5f);
+      continue;
+    }
+
+    p.x_ /= p_length;
+    p.y_ /= p_length;
+    p.z_ /= p_length;
+    n.x_ /= n_length;
+    n.y_ /= n_length;
+    n.z_ /= n_length;
+
+    const float dot = p.x_ * n.x_ + p.y_ * n.y_ + p.z_ * n.z_;
+    const RageVector3 reflection(p.x_ - 2.0f * dot * n.x_,
+                                 p.y_ - 2.0f * dot * n.y_,
+                                 p.z_ - 2.0f * dot * n.z_);
+    const float m = 2.0f * std::sqrt(
+        reflection.x_ * reflection.x_ + reflection.y_ * reflection.y_ +
+        (reflection.z_ + 1.0f) * (reflection.z_ + 1.0f));
+    if (m <= 0.000001f) {
+      texcoords[i] = RageVector2(0.5f, 0.5f);
+    } else {
+      texcoords[i] = RageVector2(reflection.x_ / m + 0.5f,
+                                 reflection.y_ / m + 0.5f);
+    }
+  }
+}
 
 // RageSurfaceUtils performs channel conversion and palette expansion using
 // the engine's own format semantics. Never reinterpret arbitrary surface bytes
@@ -74,6 +136,7 @@ void setup_vertices(const RageSpriteVertex* v, int count) {
 class GLESGeometry : public RageCompiledGeometry {
  public:
   std::vector<RageModelVertex> vertices; std::vector<msTriangle> triangles;
+  mutable std::vector<RageVector2> sphere_texcoords;
   void Allocate(const std::vector<msMesh>&) override {}
   void Change(const std::vector<msMesh>& meshes) override {
     vertices.resize(GetTotalVertices()); triangles.resize(GetTotalTriangles());
@@ -86,11 +149,35 @@ class GLESGeometry : public RageCompiledGeometry {
     }
   }
   void Draw(int m) const override {
+    if (vertices.empty()) return;
     const MeshInfo& mi=mesh_info_[m];
     glVertexPointer(3,GL_FLOAT,sizeof(RageModelVertex),&vertices[0].p_);
     glNormalPointer(GL_FLOAT,sizeof(RageModelVertex),&vertices[0].n_);
-    glTexCoordPointer(2,GL_FLOAT,sizeof(RageModelVertex),&vertices[0].t_);
-    glDisableClientState(GL_COLOR_ARRAY); glColor4f(1,1,1,1);
+    if (sphere_environment_mapping) {
+      generate_sphere_map_texcoords(vertices, sphere_texcoords);
+      glTexCoordPointer(2, GL_FLOAT, 0, sphere_texcoords.data());
+    } else {
+      glTexCoordPointer(2,GL_FLOAT,sizeof(RageModelVertex),&vertices[0].t_);
+    }
+    glDisableClientState(GL_COLOR_ARRAY);
+
+    if (mi.needs_texture_matrix_scale_) {
+      // MilkShape vertex flags can request that animated texture translation
+      // not affect a mesh. The mine model uses this to keep its outer ring
+      // fixed while the model animation rotates underneath it. Match the
+      // software desktop OpenGL renderer, which removes translation from the
+      // texture matrix for such meshes.
+      RageMatrix texture_matrix;
+      glGetFloatv(GL_TEXTURE_MATRIX,
+                  reinterpret_cast<GLfloat*>(&texture_matrix));
+      texture_matrix.m_[3][0] = 0.0f;
+      texture_matrix.m_[3][1] = 0.0f;
+      texture_matrix.m_[3][2] = 0.0f;
+      glMatrixMode(GL_TEXTURE);
+      glLoadMatrixf(reinterpret_cast<const GLfloat*>(&texture_matrix));
+      glMatrixMode(GL_MODELVIEW);
+    }
+
     glDrawElements(GL_TRIANGLES,mi.triangle_count_*3,GL_UNSIGNED_SHORT,&triangles[mi.triangle_start_]);
     glEnableClientState(GL_COLOR_ARRAY);
   }
@@ -346,5 +433,61 @@ void RageDisplay_DDRMini::ClearZBuffer() {
   glDepthMask(was_writable);
 }
 void RageDisplay_DDRMini::SetCullMode(CullMode m){if(m==CULL_NONE)glDisable(GL_CULL_FACE);else{glEnable(GL_CULL_FACE);glCullFace(m==CULL_BACK?GL_BACK:GL_FRONT);}}void RageDisplay_DDRMini::SetAlphaTest(bool b){if(b){glEnable(GL_ALPHA_TEST);glAlphaFunc(GL_GREATER,0.01f);}else glDisable(GL_ALPHA_TEST);}
-void RageDisplay_DDRMini::SetMaterial(const RageColor&e,const RageColor&a,const RageColor&d,const RageColor&s,float sh){glMaterialfv(GL_FRONT_AND_BACK,GL_EMISSION,&e.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT,&a.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_DIFFUSE,&d.r_);glMaterialfv(GL_FRONT_AND_BACK,GL_SPECULAR,&s.r_);glMaterialf(GL_FRONT_AND_BACK,GL_SHININESS,sh);}void RageDisplay_DDRMini::SetLighting(bool b){if(b)glEnable(GL_LIGHTING);else glDisable(GL_LIGHTING);}void RageDisplay_DDRMini::SetLightOff(int i){glDisable(GL_LIGHT0+i);}void RageDisplay_DDRMini::SetLightDirectional(int i,const RageColor&a,const RageColor&d,const RageColor&s,const RageVector3&v){GLfloat p[]={-v.x_,-v.y_,-v.z_,0};glEnable(GL_LIGHT0+i);glLightfv(GL_LIGHT0+i,GL_AMBIENT,&a.r_);glLightfv(GL_LIGHT0+i,GL_DIFFUSE,&d.r_);glLightfv(GL_LIGHT0+i,GL_SPECULAR,&s.r_);glLightfv(GL_LIGHT0+i,GL_POSITION,p);}void RageDisplay_DDRMini::SetSphereEnvironmentMapping(TextureUnit,bool){/* GLES 1.1 has no core sphere-map texgen. */}
+void RageDisplay_DDRMini::SetMaterial(const RageColor& emissive,
+                                      const RageColor& ambient,
+                                      const RageColor& diffuse,
+                                      const RageColor& specular,
+                                      float shininess) {
+  GLboolean lighting = GL_FALSE;
+  glGetBooleanv(GL_LIGHTING, &lighting);
+  if (lighting) {
+    glMaterialfv(GL_FRONT, GL_EMISSION, &emissive.r_);
+    glMaterialfv(GL_FRONT, GL_AMBIENT, &ambient.r_);
+    glMaterialfv(GL_FRONT, GL_DIFFUSE, &diffuse.r_);
+    glMaterialfv(GL_FRONT, GL_SPECULAR, &specular.r_);
+    glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+  } else {
+    // Material state has no effect without GL_LIGHTING. Preserve the actor's
+    // diffuse alpha while approximating its emissive and ambient RGB terms.
+    const RageColor color(diffuse.r_ + emissive.r_ + ambient.r_,
+                          diffuse.g_ + emissive.g_ + ambient.g_,
+                          diffuse.b_ + emissive.b_ + ambient.b_, diffuse.a_);
+    glColor4f(color.r_, color.g_, color.b_, color.a_);
+  }
+}
+
+void RageDisplay_DDRMini::SetLighting(bool enabled) {
+  if (enabled) glEnable(GL_LIGHTING);
+  else glDisable(GL_LIGHTING);
+}
+
+void RageDisplay_DDRMini::SetLightOff(int index) {
+  glDisable(GL_LIGHT0 + index);
+}
+
+void RageDisplay_DDRMini::SetLightDirectional(
+    int index, const RageColor& ambient, const RageColor& diffuse,
+    const RageColor& specular, const RageVector3& direction) {
+  // OpenGL transforms a light position when it is set. The engine supplies
+  // this direction in world space, so actor transforms must not rotate it.
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+  glEnable(GL_LIGHT0 + index);
+  glLightfv(GL_LIGHT0 + index, GL_AMBIENT, &ambient.r_);
+  glLightfv(GL_LIGHT0 + index, GL_DIFFUSE, &diffuse.r_);
+  glLightfv(GL_LIGHT0 + index, GL_SPECULAR, &specular.r_);
+  const GLfloat position[] = {
+      direction.x_, direction.y_, direction.z_, 0.0f};
+  glLightfv(GL_LIGHT0 + index, GL_POSITION, position);
+  glPopMatrix();
+}
+
+void RageDisplay_DDRMini::SetSphereEnvironmentMapping(TextureUnit unit,
+                                                       bool enabled) {
+  // This GLES renderer exposes one texture unit. GLES 1.1 omits desktop
+  // OpenGL's GL_SPHERE_MAP texgen, so compiled geometry supplies equivalent
+  // texture coordinates from the CPU while this state is enabled.
+  if (unit == TextureUnit_1) sphere_environment_mapping = enabled;
+}
 RageSurface* RageDisplay_DDRMini::CreateScreenshot(){RageSurface* s=CreateSurface(params_.width_,params_.height_,24,0xFF0000,0x00FF00,0x0000FF,0);glReadPixels(0,0,s->w_,s->h_,GL_RGB,GL_UNSIGNED_BYTE,s->pixels_);return s;}
