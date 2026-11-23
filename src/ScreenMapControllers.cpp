@@ -409,9 +409,8 @@ bool ScreenMapControllers::Input(const InputEventPlus& input) {
     }
 
     // Don't allow function keys to be mapped.
-    if (input.device_i_.device_ == DEVICE_KEYBOARD &&
-        (input.device_i_.button_ >= KEY_F1 &&
-         input.device_i_.button_ <= KEY_F12)) {
+    //override for ddr mini
+    if (false) {
       SCREENMAN->SystemMessage(INVALID_BUTTON);
       SCREENMAN->PlayInvalidSound();
     } else {
