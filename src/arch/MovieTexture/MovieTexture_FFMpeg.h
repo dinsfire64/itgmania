@@ -75,6 +75,7 @@ class MovieDecoder_FFMpeg : public MovieDecoder {
 
   int DecodeMovie() override;
   bool IsCurrentFrameReady() override;
+  bool HasMoreFramesReady() override;
 
   int GetWidth() const override {
     return av_stream_codec_ ? av_stream_codec_->width : 0;
@@ -134,6 +135,9 @@ class MovieDecoder_FFMpeg : public MovieDecoder {
   float last_pts_ = 0.0f;
   float last_duration_ = 0.0f;
   bool first_pts_seen_ = false;
+#ifdef DDRMINI
+  float last_converted_pts_ = -1.0f;
+#endif
 
   std::atomic<bool> cancel_{false};
   std::atomic<bool> looping_{false};

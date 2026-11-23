@@ -1,5 +1,6 @@
 #include "MovieTexture_Generic.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -214,6 +215,26 @@ void MovieTexture_Generic::CreateTexture() {
   image_width_ = source_width_;
   image_height_ = source_height_;
 
+#ifdef DDRMINI
+  // The console outputs 1280x720. Converting and uploading a 1920x1080 RGB
+  // frame cannot add visible detail and is expensive enough to stall its GLES
+  // driver. Preserve aspect ratio while limiting the decoded movie surface to
+  // the native output size.
+  constexpr int kMaxMovieWidth = 1280;
+  constexpr int kMaxMovieHeight = 720;
+  const float movie_scale = std::min(
+      1.0f, std::min(static_cast<float>(kMaxMovieWidth) / image_width_,
+                     static_cast<float>(kMaxMovieHeight) / image_height_));
+  if (movie_scale < 1.0f) {
+    image_width_ = std::max(1, static_cast<int>(std::lrint(
+                                   image_width_ * movie_scale)));
+    image_height_ = std::max(1, static_cast<int>(std::lrint(
+                                    image_height_ * movie_scale)));
+    LOG->Trace("DDR Mini movie decode scaled to %ix%i", image_width_,
+               image_height_);
+  }
+#endif
+
   /* Texture dimensions need to be a power of two; jump to the next. */
   texture_width_ = power_of_two(image_width_);
   texture_height_ = power_of_two(image_height_);
@@ -331,6 +352,10 @@ void MovieTexture_Generic::UpdateMovie(float seconds) {
   }
   clock_ += seconds * rate_;
 
+#ifdef DDRMINI
+  upload_elapsed_ += std::max(0.0f, seconds);
+#endif
+
   if (finished_) {
     if (loop_) {
       finished_ = false;
@@ -353,9 +378,17 @@ void MovieTexture_Generic::UpdateMovie(float seconds) {
   // Display the first available frame immediately so static/preview textures
   // render without a perceptible lag, then pace subsequent frames using
   // CheckFrameTime().
-  if (decoder_->IsCurrentFrameReady() &&
+  bool upload_due = true;
+#ifdef DDRMINI
+  constexpr float kMovieUploadInterval = 1.0f / 30.0f;
+  upload_due = !first_frame_displayed_ || upload_elapsed_ >= kMovieUploadInterval;
+#endif
+  if (upload_due && decoder_->IsCurrentFrameReady() &&
       (!first_frame_displayed_ || CheckFrameTime() <= 0)) {
     UpdateFrame();
+#ifdef DDRMINI
+    upload_elapsed_ = 0.0f;
+#endif
   }
 }
 
@@ -377,7 +410,10 @@ void MovieTexture_Generic::UpdateFrame() {
   // If the engine clock has significantly outpaced decoding (e.g. gameplay
   // hitch or heavy lag), drop stale frames without uploading to GPU to quickly
   // restore audio/video synchronization.
-  while (decoder_->IsCurrentFrameReady() && first_frame_displayed_ &&
+  // Keep at least one decoded frame available for upload. On slower targets,
+  // draining the queue to empty here means every late frame is discarded and
+  // the movie can remain permanently blank even though decoding succeeds.
+  while (decoder_->HasMoreFramesReady() && first_frame_displayed_ &&
          CheckFrameTime() < -0.1f) {
     int drop_ret = decoder_->GetFrame(nullptr);
     if (drop_ret == 1 || decoder_->EndOfMovie()) {
@@ -475,6 +511,9 @@ void MovieTexture_Generic::SetPosition(float seconds) {
   LOG->Trace("Seek to %f", seconds);
   clock_ = 0;
   first_frame_displayed_ = false;
+#ifdef DDRMINI
+  upload_elapsed_ = 0.0f;
+#endif
   decoder_->Rewind();
 }
 
