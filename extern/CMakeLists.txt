@@ -17,7 +17,9 @@ include(CMakeProject-stb_image_write.cmake)
 include(CMakeProject-ixwebsocket.cmake)
 include(CMakeProject-miniz.cmake)
 include(CMakeProject-aubio.cmake)
-include(CMakeProject-gtest.cmake)
+if(NOT WITH_DDRMINI)
+  include(CMakeProject-gtest.cmake)
+endif()
 
 # External projects
 include(CMakeProject-libusb.cmake)
