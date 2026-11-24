@@ -1161,6 +1161,7 @@ bool HandleGlobalInputs(const InputEventPlus& input) {
   /* Re-added for StepMania 3.9 theming veterans, plus it's just faster than
    * the debug menu. The Shift button only reloads the metrics, unlike in 3.9
    * (where it saved bookkeeping and machine profile). -aj */
+#if !defined(DDRMINI)
   bool is_shift_held =
       INPUTFILTER->IsBeingPressed(
           DeviceInput(DEVICE_KEYBOARD, KEY_LSHIFT), &input.input_list_) ||
@@ -1171,8 +1172,6 @@ bool HandleGlobalInputs(const InputEventPlus& input) {
           DeviceInput(DEVICE_KEYBOARD, KEY_LCTRL), &input.input_list_) ||
       INPUTFILTER->IsBeingPressed(
           DeviceInput(DEVICE_KEYBOARD, KEY_RCTRL), &input.input_list_);
-  //disable for ddr mini
-  /*
   if (input.device_i_ == DeviceInput(DEVICE_KEYBOARD, KEY_F2)) {
     if (is_shift_held && !is_ctrl_held) {
       // Shift+F2: refresh metrics,noteskin cache and CodeDetector cache only
@@ -1204,7 +1203,7 @@ bool HandleGlobalInputs(const InputEventPlus& input) {
 
     return true;
   }
-  */
+#endif
 
   if (input.device_i_ == DeviceInput(DEVICE_KEYBOARD, KEY_PAUSE)) {
     Message msg("ToggleConsoleDisplay");
