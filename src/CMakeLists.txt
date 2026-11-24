@@ -534,9 +534,8 @@ endif()
 target_link_libraries(itgmania_core PUBLIC ${SMDATA_LINK_LIB})
 
 if(WITH_DDRMINI)
-  # Vendor DSOs are built against the console's glibc 2.35 while the compiler
-  # intentionally emits an older Bullseye ABI. Their transitive symbols are
-  # resolved by the DDR Mini runtime loader.
+  # The compact Docker overlays omit optional transitive libraries supplied by
+  # the console at runtime.
   target_link_options("${SM_EXE_NAME}" PRIVATE -Wl,--allow-shlib-undefined)
 endif()
 

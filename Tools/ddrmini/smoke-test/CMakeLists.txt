@@ -8,8 +8,8 @@ if(NOT DDRMINI_SDL_INCLUDE_DIR)
 endif()
 
 find_library(DDRMINI_SDL_LIBRARY
-  NAMES SDL2-2.0 SDL2 libSDL2-2.0.so.0
-  PATHS "${DDRMINI_SYSROOT}/usr/lib"
+  NAMES SDL2-2.0 SDL2
+  PATHS "${DDRMINI_SDL_ROOT}/usr/lib/aarch64-linux-gnu"
   NO_DEFAULT_PATH
   REQUIRED)
 
@@ -20,12 +20,8 @@ target_include_directories(ddrmini-smoke PRIVATE
 target_compile_definitions(ddrmini-smoke PRIVATE SDL_MAIN_HANDLED)
 target_compile_options(ddrmini-smoke PRIVATE -Wall -Wextra)
 
-# libSDL2 and libMali come from the DDR Mini and require symbols introduced by
-# its glibc 2.35.  The Bullseye cross compiler deliberately targets the older
-# glibc 2.31 ABI, so its linker cannot resolve those target-owned transitive
-# references.  They are resolved by the console's loader at runtime.  Keep
-# undefined references in this executable fatal; relax only shared-library
-# dependency validation.
+# The compact Docker overlay intentionally omits SDL's optional transitive
+# libraries; the DDR Mini runtime supplies the libraries its SDL build needs.
 target_link_options(ddrmini-smoke PRIVATE -Wl,--allow-shlib-undefined)
 target_link_libraries(ddrmini-smoke PRIVATE "${DDRMINI_SDL_LIBRARY}" dl pthread m)
 

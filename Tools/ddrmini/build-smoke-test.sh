@@ -2,9 +2,7 @@
 set -eu
 
 repo=${1:-/work}
-image=${2:-$repo/references/ddrmini-emmc.img}
-sysroot=${3:-$repo/Build/ddrmini-sysroot}
-build=${4:-$repo/Build/ddrmini-smoke}
+build=${2:-$repo/Build/ddrmini-smoke}
 jobs=${DDRMINI_BUILD_JOBS:-2}
 
 case "$repo" in
@@ -12,18 +10,8 @@ case "$repo" in
   *) echo "repository path must be absolute: $repo" >&2; exit 2 ;;
 esac
 
-[ -f "$image" ] || {
-  echo "DDR Mini image not found: $image" >&2
-  exit 1
-}
-
-if [ ! -d "$sysroot" ]; then
-  "$repo/Tools/ddrmini/extract-sysroot.sh" "$image" "$sysroot"
-fi
-
 cmake -S "$repo/Tools/ddrmini/smoke-test" -B "$build" \
   -DCMAKE_TOOLCHAIN_FILE="$repo/CMake/toolchains/ddrmini-aarch64.cmake" \
-  -DDDRMINI_SYSROOT="$sysroot" \
   -DDDRMINI_SDL_INCLUDE_DIR=/opt/sdl2-arm64/usr/include/SDL2 \
   -DCMAKE_BUILD_TYPE=Release
 

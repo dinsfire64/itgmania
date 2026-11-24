@@ -12,14 +12,13 @@ repository root, run:
 Tools/ddrmini/docker-build.sh
 ```
 
-The first run builds the `itgmania-ddrmini-cross:bullseye` image, extracts the
-runtime sysroot, compiles the smoke test, and prints its architecture, shared
-library dependencies, and required glibc versions. Later runs reuse Docker's
-image layers and the extracted sysroot.
+The first run builds the `itgmania-ddrmini-cross:bullseye` image, compiles the
+smoke test, and prints its architecture, shared-library dependencies, and
+required glibc versions. Later runs reuse Docker's image layers.
 
 The repository is bind-mounted at `/work`. The container runs as your current
-UID and GID, so files under `Build/` remain owned by you. The 7.3 GB eMMC image
-is never copied into the Docker image or build context.
+UID and GID, so files under `Build/` remain owned by you. The build does not
+need a firmware image or files extracted from the console.
 
 The USB payload consists of:
 
@@ -56,55 +55,6 @@ Inside that shell, rebuild with:
 ```sh
 Tools/ddrmini/build-smoke-test.sh
 ```
-
-## Manual build without Docker
-
-### 1. Extract the runtime sysroot
-
-The source image is only read.  The output directory must not already exist.
-
-```sh
-Tools/ddrmini/extract-sysroot.sh \
-  references/ddrmini-emmc.img \
-  Build/ddrmini-sysroot
-```
-
-The firmware rootfs has runtime libraries but no development headers. On a
-Debian/Ubuntu build host, install an AArch64 compiler and compatible headers
-(this command needs to be run by an administrator):
-
-```sh
-sudo apt install gcc-aarch64-linux-gnu libc6-dev-arm64-cross libsdl2-dev
-```
-
-The host `libsdl2-dev` headers are usable for this test because it only calls
-APIs present in the target's SDL 2.0.8.  Linking still uses the target SDL
-library from the extracted runtime sysroot. The Debian cross compiler uses its
-own complete compile sysroot; its older glibc ABI runs on the DDR Mini's glibc
-2.35. A matching Yocto SDK is preferable for the eventual ITGmania build and
-can be selected with `-DDDRMINI_COMPILER_SYSROOT=/path/to/sdk/sysroot`.
-
-### 2. Build the smoke test
-
-```sh
-cmake -S Tools/ddrmini/smoke-test -B Build/ddrmini-smoke \
-  -DCMAKE_TOOLCHAIN_FILE="$PWD/CMake/toolchains/ddrmini-aarch64.cmake" \
-  -DDDRMINI_SYSROOT="$PWD/Build/ddrmini-sysroot" \
-  -DDDRMINI_SDL_INCLUDE_DIR=/usr/include/SDL2 \
-  -DCMAKE_BUILD_TYPE=Release
-
-cmake --build Build/ddrmini-smoke --parallel
-```
-
-Verify the result before copying it:
-
-```sh
-file Build/ddrmini-smoke/ddrmini-smoke
-aarch64-linux-gnu-readelf -d Build/ddrmini-smoke/ddrmini-smoke | grep NEEDED
-```
-
-It must report an AArch64 executable and a dependency on
-`libSDL2-2.0.so.0`.
 
 ## Test from USB
 
@@ -152,7 +102,8 @@ DDRMINI_BUILD_JOBS=1 Tools/ddrmini/docker-build-itgmania.sh
 DDRMINI_BUILD_JOBS=4 Tools/ddrmini/docker-build-itgmania.sh
 ```
 
-The DDR Mini build uses the firmware's SDL2, EGL, and OpenGL ES 1 libraries.
+The DDR Mini build links against the ARM64 SDL2, EGL, and OpenGL ES 1
+development libraries packaged in the Docker image.
 After changes to the Dockerfile (including the GLES renderer addition), rebuild
 the image and the application with:
 

@@ -24,8 +24,8 @@ list(APPEND FFMPEG_CONFIGURE
 
 if(WITH_DDRMINI)
   # FFmpeg is configured before ITGmania's bundled zlib has been built or
-  # installed, and the conservative Bullseye compiler sysroot intentionally
-  # has no target zlib development package. None of ITGmania's normal movie
+  # installed, and the Docker cross-toolchain intentionally has no target zlib
+  # development package. None of ITGmania's normal movie
   # formats require FFmpeg's optional zlib integration.
   list(APPEND FFMPEG_CONFIGURE "--disable-zlib")
 else()

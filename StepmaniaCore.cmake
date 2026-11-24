@@ -173,17 +173,14 @@ elseif(LINUX OR BSD)
                  NO_DEFAULT_PATH
                  NO_CMAKE_FIND_ROOT_PATH
                  REQUIRED)
-    # The firmware contains the runtime SONAME, but no libSDL2.so development
-    # symlink.  find_library() only considers normal link names, so locate the
-    # exact DSO instead and pass its absolute path to the linker.
-    find_file(DDRMINI_SDL_LIBRARY NAMES libSDL2-2.0.so.0
-              PATHS "${DDRMINI_SYSROOT}/usr/lib"
+    find_library(DDRMINI_SDL_LIBRARY NAMES SDL2-2.0 SDL2
+              PATHS "${DDRMINI_SDL_ROOT}/usr/lib/aarch64-linux-gnu"
               NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH REQUIRED)
     find_library(DDRMINI_GLES1_LIBRARY NAMES GLESv1_CM
-                 PATHS "${DDRMINI_SYSROOT}/usr/lib"
+                 PATHS "${DDRMINI_GLES_ROOT}/usr/lib/aarch64-linux-gnu"
                  NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH REQUIRED)
     find_library(DDRMINI_EGL_LIBRARY NAMES EGL
-                 PATHS "${DDRMINI_SYSROOT}/usr/lib"
+                 PATHS "${DDRMINI_GLES_ROOT}/usr/lib/aarch64-linux-gnu"
                  NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH REQUIRED)
     include("${SM_CMAKE_DIR}/SetupFfmpeg.cmake")
   else()
