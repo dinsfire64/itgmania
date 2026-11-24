@@ -33,8 +33,7 @@ std::string RageSoundDriver_DDRMini_SDL::Init() {
 
   SDL_AudioSpec requested;
   SDL_zero(requested);
-  // This is the native format verified by the DDR Mini smoke test.  The
-  // engine resamples source audio to the driver's reported rate.
+  // The engine resamples source audio to the driver's reported rate.
   requested.freq = 48000;
   requested.format = AUDIO_S16SYS;
   requested.channels = kChannels;

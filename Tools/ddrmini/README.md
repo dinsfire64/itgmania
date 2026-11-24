@@ -1,32 +1,20 @@
-# DDR Mini bring-up tools
+# DDR Mini build tools
 
-These tools build a small SDL/EGL test before changing ITGmania's renderer.
-The test uses the same custom SDL2 Mali video path as the stock DDR Mini menu.
-
-## Recommended: build with Docker
+## Build with Docker
 
 Docker keeps the cross compiler and build packages reproducible. From the
 repository root, run:
 
 ```sh
-Tools/ddrmini/docker-build.sh
+Tools/ddrmini/docker-build-itgmania.sh
 ```
 
-The first run builds the `itgmania-ddrmini-cross:bullseye` image, compiles the
-smoke test, and prints its architecture, shared-library dependencies, and
-required glibc versions. Later runs reuse Docker's image layers.
+The first run builds the `itgmania-ddrmini-cross:bullseye` image and compiles
+ITGmania. Later runs reuse Docker's image layers.
 
 The repository is bind-mounted at `/work`. The container runs as your current
 UID and GID, so files under `Build/` remain owned by you. The build does not
 need a firmware image or files extracted from the console.
-
-The USB payload consists of:
-
-```text
-Build/ddrmini-smoke/DDRmenu
-Build/ddrmini-smoke/monitor_audio.sh
-Build/ddrmini-smoke/ddrmini-smoke
-```
 
 If Docker reports permission denied for `/var/run/docker.sock`, either use a
 rootless Docker installation or add your account to the host's `docker` group:
@@ -50,49 +38,7 @@ docker run --rm -it \
   itgmania-ddrmini-cross:bullseye
 ```
 
-Inside that shell, rebuild with:
-
-```sh
-Tools/ddrmini/build-smoke-test.sh
-```
-
-## Test from USB
-
-Back up any existing `DDRmenu` on the flash drive, then copy all three files
-to its root. Preserve the executable permissions. The installed firmware hook
-mounts the drive at `/var/run/media/game` and runs `DDRmenu` as root.
-
-`DDRmenu` starts `monitor_audio.sh`, which enables the headphone output,
-selects speaker or headphones from the jack state, and maps the physical
-volume knob to the DAC level. It then starts `ddrmini-smoke` and stops the
-monitor when the application exits. This launcher can later be reused for
-ITGmania.
-
-The screen shows a live dashboard with the SDL video driver, renderer, audio
-status, joystick count, and latest input event while a quiet 440 Hz tone
-plays. A persistent log is written directly to the flash drive as:
-
-```text
-ddrmini-smoke.log
-```
-
-The firmware also captures standard output and error in:
-
-```text
-/var/log/initapp/usbloader/log
-```
-
-The program deliberately exits with status 1 because firmware interprets
-status 0 or 42 as a reboot/shutdown request.
-
-## ITGmania ARM64 bootstrap build
-
-After the smoke test succeeds, compile the full application core with the
-DDR Mini bootstrap target:
-
-```sh
-Tools/ddrmini/docker-build-itgmania.sh
-```
+Inside that shell, rebuild with `Tools/ddrmini/build-itgmania.sh`.
 
 The build defaults to two parallel compiler jobs to limit peak memory use.
 Override it from the host when needed:
