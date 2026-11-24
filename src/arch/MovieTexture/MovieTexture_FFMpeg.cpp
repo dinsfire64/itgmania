@@ -150,9 +150,6 @@ void MovieDecoder_FFMpeg::Init() {
   last_pts_ = 0.0f;
   last_duration_ = 0.0f;
   first_pts_seen_ = false;
-#ifdef DDRMINI
-  last_converted_pts_ = -1.0f;
-#endif
   target_width_ = 0;
   target_height_ = 0;
   target_pitch_ = 0;
@@ -191,11 +188,6 @@ bool MovieDecoder_FFMpeg::IsCurrentFrameReady() {
   return !ready_queue_.empty();
 }
 
-bool MovieDecoder_FFMpeg::HasMoreFramesReady() {
-  std::lock_guard<std::mutex> lock(queue_mutex_);
-  return ready_queue_.size() > 1;
-}
-
 bool MovieDecoder_FFMpeg::EndOfMovie() {
   std::lock_guard<std::mutex> lock(queue_mutex_);
   return end_of_movie_ && ready_queue_.empty();
@@ -229,9 +221,6 @@ void MovieDecoder_FFMpeg::SeekToStart() {
   timestamp_offset_ = 0.0f;
   last_pts_ = 0.0f;
   last_duration_ = 0.0f;
-#ifdef DDRMINI
-  last_converted_pts_ = -1.0f;
-#endif
 }
 
 void MovieDecoder_FFMpeg::HandleReset() {
@@ -308,11 +297,8 @@ float MovieDecoder_FFMpeg::CalculateDuration(avcodec::AVFrame* frame) {
 // avoiding sws_scale execution on the main engine render thread.
 void MovieDecoder_FFMpeg::ConvertFrame(
     avcodec::AVFrame* raw_frame, ConvertedFrame& out_frame) {
-  // The output surface can be smaller than the encoded video. This is used by
-  // constrained renderers to avoid converting and uploading pixels that can
-  // never be displayed.
-  int dst_width = target_width_;
-  int dst_height = target_height_;
+  int dst_width = GetWidth();
+  int dst_height = GetHeight();
 
   if (av_sws_context_ == nullptr && dst_width > 0 && dst_height > 0) {
     av_sws_context_ = avcodec::sws_getCachedContext(
@@ -455,22 +441,6 @@ int MovieDecoder_FFMpeg::DecodeMovie() {
 
     float frame_pts = CalculatePTS(raw_frame);
     float frame_duration = CalculateDuration(raw_frame);
-
-#ifdef DDRMINI
-    // A 60 FPS source otherwise performs two costly YUV-to-RGB conversions
-    // for every frame the console can upload. Decode inter-frame video as
-    // required, but only convert frames at the 30 FPS presentation cadence.
-    constexpr float kConversionInterval = 1.0f / 30.0f;
-    if (last_converted_pts_ >= 0.0f &&
-        frame_pts - last_converted_pts_ < kConversionInterval - 0.0005f) {
-      std::lock_guard<std::mutex> lock(queue_mutex_);
-      if (frame_pool_.size() < kMaxPoolFrames) {
-        frame_pool_.push_back(std::move(frame_buf));
-      }
-      continue;
-    }
-    last_converted_pts_ = frame_pts;
-#endif
 
     ConvertFrame(raw_frame, *frame_buf);
     frame_buf->pts_ = frame_pts;

@@ -37,10 +37,6 @@ class MovieDecoder {
   // Returns true if the frame we want to display has been decoded already.
   virtual bool IsCurrentFrameReady() = 0;
 
-  // Returns true when a newer decoded frame can replace the current one.
-  // Frame-dropping code uses this to avoid draining the queue completely.
-  virtual bool HasMoreFramesReady() = 0;
-
   /*
    * Get the currently-decoded frame.
    */
@@ -144,13 +140,6 @@ class MovieTexture_Generic : public RageMovieTexture {
   /* The engine playback clock (in seconds) tracking elapsed movie display time.
    */
   float clock_;
-
-#ifdef DDRMINI
-  // Time since the last GPU movie-texture upload. Decoding may run at the
-  // source frame rate, but the DDR Mini only uploads at 30 FPS so video does
-  // not force the 60 FPS game loop to miss every other vblank.
-  float upload_elapsed_ = 0.0f;
-#endif
 
   void UpdateFrame();
 
