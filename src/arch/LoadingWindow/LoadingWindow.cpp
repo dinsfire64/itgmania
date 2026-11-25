@@ -17,7 +17,18 @@ LoadingWindow* LoadingWindow::Create() {
   if (!PREFSMAN->show_loading_window_) {
     return new LoadingWindow_Null;
   }
-#if defined(UNIX) && !defined(HAVE_GTK)
+#if defined(DDRMINI)
+  LoadingWindow* ddrmini = new LoadingWindow_DDRMini;
+  const std::string error = ddrmini->Init();
+  if (error.empty()) {
+    LOG->Info("Loading window: DDRMini");
+    ddrmini->SetIndeterminate(true);
+    return ddrmini;
+  }
+  LOG->Info("Couldn't load DDR Mini loading window: %s", error.c_str());
+  RageUtil::SafeDelete(ddrmini);
+  return new LoadingWindow_Null;
+#elif defined(UNIX) && !defined(HAVE_GTK)
   return new LoadingWindow_Null;
 #endif
   // Don't load nullptr by default.

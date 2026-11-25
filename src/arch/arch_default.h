@@ -52,6 +52,9 @@ inline const std::vector<std::string>& GetDefaultSoundDriverList() {
 
 #elif defined(UNIX)
 #include "ArchHooks/ArchHooks_Unix.h"
+#if defined(DDRMINI)
+#include "LoadingWindow/LoadingWindow_DDRMini.h"
+#endif
 #if !defined(DDRMINI)
 #include "LowLevelWindow/LowLevelWindow_X11.h"
 #endif
